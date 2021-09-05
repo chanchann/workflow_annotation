@@ -87,3 +87,5 @@ bin/lib-bash
 *.log 
 */logs/*
 */*log*
+
+*/_include/*
