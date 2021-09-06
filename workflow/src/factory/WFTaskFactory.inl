@@ -18,6 +18,13 @@
            Li Yingxin (liyingxin@sogou-inc.com)
 */
 
+/*
+inl 文件是内联函数的源文件。 内联函数通常在c++头文件中实现，
+但有的时候内联函数较多或者出于一些别的考虑（使头文件看起来更简洁等），往往会将这部分具体定义的代码添加到INL文件中，
+然后在该头文件的末尾将其用#include引入。 
+由此也可以看到inl文件的例外一个用法的影子——模板函数、模板类的定义代码的存放
+*/
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <errno.h>

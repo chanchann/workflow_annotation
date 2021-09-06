@@ -48,11 +48,11 @@ protected:
 
 protected:
 	CommTarget *target;
-#define TOR_NOT_TIMEOUT			0
+#define TOR_NOT_TIMEOUT			0     // TOR - Time out reason
 #define TOR_WAIT_TIMEOUT		1
 #define TOR_CONNECT_TIMEOUT		2
 #define TOR_TRANSMIT_TIMEOUT	3
-	int timeout_reason;
+	int timeout_reason;    // 超时原因上面四种
 
 protected:
 	int wait_timeout;

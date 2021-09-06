@@ -26,12 +26,15 @@ class ParallelTask;
 class SubTask
 {
 public:
+	// 子任务被调起的时机
 	virtual void dispatch() = 0;
 
 private:
+	// 子任务执行完成的时机
 	virtual SubTask *done() = 0;
 
 protected:
+	// 内部实现，决定了任务流走向
 	void subtask_done();
 
 public:

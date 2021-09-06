@@ -36,6 +36,7 @@ protected:
 	friend class Communicator;
 };
 
+// CommTarget是通讯目标，基本上就是ip+port, 还有两个超时参数。连接池什么的都在target里。
 class CommTarget
 {
 public:
@@ -85,9 +86,11 @@ private:
 	int response_timeout;
 	int ssl_connect_timeout;
 	SSL_CTX *ssl_ctx;
-
+	// SSL_CTX数据结构主要用于SSL握手前的环境准备，设置CA文件和目录、设置SSL握手中的证书文件和私钥、设置协议版本以及其他一些SSL握手时的选项。
+	// SSL_CTX中缓存了所有SSL_SESSION信息
+	// 一般SSL_CTX的初始化在程序最开始调用
 private:
-	struct list_head idle_list;
+	struct list_head idle_list;  // idle_list本来是指keep-alive的可复用连接, 此处命名有歧意
 	pthread_mutex_t mutex;
 
 public:
@@ -128,16 +131,21 @@ public:
 #define CS_STATE_STOPPED	2
 #define CS_STATE_TOREPLY	3	/* for service session only. */
 
+
+/*
+CommSession是一次req->resp的交互，主要要实现message_in(), message_out()等几个虚函数，让核心知道怎么产生消息。
+对server来讲，session是被动产生的
+*/
 class CommSession
 {
 private:
-	virtual CommMessageOut *message_out() = 0;
-	virtual CommMessageIn *message_in() = 0;
-	virtual int send_timeout() { return -1; }
+	virtual CommMessageOut *message_out() = 0;  // 往连接上要发的数据
+	virtual CommMessageIn *message_in() = 0;   // 连接上收到数据流，如何切下一个数据包
+	virtual int send_timeout() { return -1; }   
 	virtual int receive_timeout() { return -1; }
 	virtual int keep_alive_timeout() { return 0; }
 	virtual int first_timeout() { return 0; }	/* for client session only. */
-	virtual void handle(int state, int error) = 0;
+	virtual void handle(int state, int error) = 0;    // 连接上收到数据流，如何切下一个数据包
 
 private:
 	virtual int connect_timeout() { return this->target->connect_timeout; }
@@ -168,6 +176,9 @@ public:
 	friend class Communicator;
 };
 
+/*
+CommService就是服务了，主要是new_session()的实现，因为对server来讲，session是被动产生的。
+*/
 class CommService
 {
 public:
@@ -266,6 +277,9 @@ public:
 # include "IOService_thread.h"
 #endif
 
+/*
+Communicator::request(CommSession *session, CommTarget *target)这个接口就可以实现一个异步的网络请求了
+*/
 class Communicator
 {
 public:

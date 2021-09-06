@@ -50,6 +50,7 @@ static constexpr struct WFServerParams SERVER_PARAMS_DEFAULT =
 	.ssl_accept_timeout		=	10 * 1000,
 };
 
+
 class WFServerBase : protected CommService
 {
 public:
@@ -198,6 +199,7 @@ public:
 		process(std::move(proc))
 	{
 	}
+
 
 protected:
 	virtual CommSession *new_session(long long seq, CommConnection *conn);
