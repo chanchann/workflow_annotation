@@ -227,4 +227,325 @@ https://github.com/sogou/workflow/blob/master/docs/about-connection-context.md
 
 可以参考upstream相关文档。upstream还可以实现很多更复杂的服务管理需求。
 
-22. 
+22. chunked编码的http body如何最高效访问
+
+很多情况下我们使用HttpMessage::get_parsed_body()来获得http消息体。但从效率角度上考虑，我们并不自动为用户解码chunked编码，而是返回原始body。解码chunked编码可以用HttpChunkCursor，例如
+
+```cpp
+#include "workflow/HttpUtil.h"
+
+void http_callback(WFHttpTask *task)
+{
+    protocol::HttpResponse *resp = task->get_resp();
+    protocol::HttpChunkCursor cursor(resp);
+    const void *chunk;
+    size_t size;
+
+    while (cursor.next(&chunk, &size))
+    {
+        ...
+    }
+}
+```
+
+cursor.next操作每次返回一个chunk的起始位置指针和chunk大小，不进行内存拷贝。使用HttpChunkCursor之前无需判断消息是不是chunk编码，因为非chunk编码也可以认为整体就是一个chunk。
+
+23. 能不能在callback或process里同步等待一个任务完成
+
+不推荐这个做法，因为任何任务都可以串进任务流，无需占用线程等待。如果一定要这样做，可以用我们提供的WFFuture来实现。请不要直接使用std::future，因为我们所有通信的callback和process都在一组线程里完成，使用std::future可能会导致所有线程都陷入等待，引发整体死锁。WFFuture通过动态增加线程的方式来解决这个问题。使用WFFuture还需要注意在任务的callback里把要保留的数据（一般是resp）通过std::move移动到结果里，否则callback之后数据会随着任务一起被销毁。
+
+24. 数据如何在task之间传递
+
+最常见的，同一个series里的任务共享series上下文，通过series的get_context()和set_context()的方法来读取和修改。
+
+而parallel在它的callback里，也可以通过series_at()获到它所包含的各个series（这些series的callback已经被调用，但会在parallel callback之后才被销毁），从而获取它们的上下文。
+
+由于parallel也是一种任务，所以它可以把汇总的结果通过它所在的series context继续传递。
+
+总之，series是协程，series context就是协程的局部变量。parallel是协程的并行，可汇总所有协程的运行结果。
+
+25. Server的stop()操作完成时机
+
+Server的stop()操作是优雅关闭，程序结束之前必须关闭所有server。
+
+stop()由shutdown()和wait_finish()组成，wait_finish会等待所有运行中server task所在series结束。也就是说，你可以在server task回复完成的callback里，继续向series追加任务。stop()操作会等待这些任务的结束。另外，如果你同时开多个server，最好的关闭方法是：
+
+```cpp
+int main()
+{
+    // 一个server对象不能start多次，所以多端口服务需要定义多个server对象
+    WFRedisServer server1(process);
+    WFRedisServer server2(process);
+    server1.start(8080);
+    server2.start(8888);
+    getchar(); // 输入回车结束
+    // 先全部关闭，再等待。
+    server1.shutdown();
+    server2.shutdown();
+    server1.wait_finish();
+    server2.wait_finish();
+    return 0;
+}
+```
+
+26. 如何在收到某个特定请求时，结束server
+
+因为server的结束由shutdown()和wait_finish()组成，显然就可以在process里shutdown，在main()里wait_finish，例如：
+
+```cpp
+#include <string.h>
+#include <atomic>
+#include “workflow/WFHttpServer.h”
+
+extern void process(WFHttpTask *task);
+WFHttpServer server(process);
+
+void process(WFHttpTask *task) {
+    if (strcmp(task->get_req()->get_request_uri(), “/stop”) == 0) {
+        static std::atomic<int> flag;
+        if (flag++ == 0)
+            server.shutdown();
+        task->get_resp()->append_output_body(“<html>server stop</html>”);
+        return;
+    }
+
+    /* Server’s logic */
+    //  ....
+}
+
+int main() {
+    if (server.start(8888) == 0)
+        server.wait_finish();
+
+    return 0;
+}
+```
+
+以上代码实现一个http server，在收到/stop的请求时结束程序。process中的flag是必须的，因为process并发执行，只能有一个线程来调用shutdown操作。
+
+27. Server里需要调用非Workflow框架的异步操作怎么办
+
+还是使用counter。在其它异步框架的回调里，对counter进行count操作。
+
+```cpp
+void other_callback(server_task, counter, ...)
+{
+    server_task->get_resp()->append_output_body(result);
+    counter->count();
+}
+
+void process(WFHttpTask *server_task)
+{
+    WFCounterTask *counter = WFTaskFactory::create_counter_task(1, nullptr);
+    OtherAsyncTask *other_task = create_other_task(other_callback, server_task, counter);//非workflow框架的任务
+    other_task->run();
+    series_of(server_task)->push_back(counter);
+}
+```
+注意以上代码里，counter->count()的调用可能先于counter的启动。但无论什么时序，程序都是完全正确的。
+
+
+28. 个别https站点抓取失败是什么原因
+
+如果浏览器可以访问，但用workflow抓取失败，很大概率是因为站点使用了TLS扩展功能的SNI。可以通过全局配置打开workflow的客户端SNI功能：
+
+```cpp
+struct WFGlobalSettings settings = GLOBAL_SETTINGS_DEFAULT;
+settings.endpoint_params.use_tls_sni = true;
+WORKFLOW_library_init(&settings);
+```
+
+开启这个功能是有一定代价的，所有https站点都会启动SNI，相同IP地址但不同域名的访问，将无法复用SSL连接。
+
+因此用户也可以通过upstream功能，只打开对某个确定域名的SNI功能：
+
+```cpp
+#Include "workflow/UpstreamManager.h"
+
+int main()
+{
+    UpstreamManager::upstream_create_weighted_random("www.sogou.com", false);
+    struct AddressParams params = ADDRESS_PARAMS_DEFAULT;
+    params.endpoint_params.use_tls_sni = true;
+    UpstreamManager::upstream_add_server("www.sogou.com", "www.sogou.com", &params);
+    ...
+}
+```
+
+上面的代码把www.sogou.com设置为upstream名，并且加入一个同名的server，同时打开SNI功能。
+
+29. 怎么通过代理服务器访问http资源
+
+方法一（只适用于http任务且无法重定向）：
+
+可以通过代理服务器的地址创建http任务，并重新设置request_uri和Host头。假设我们想通过代理服务器www.proxy.com:8080访问http://www.sogou.com/ ，方法如下：
+
+```cpp
+task = WFTaskFactory::create_http_task("http://www.proxy.com:8080", 0, 0, callback);
+task->set_request_uri("http://www.sogou.com/");
+task->set_header_pair("Host", "www.sogou.com");
+```
+
+方法二（通用）：
+
+通过带proxy_url的接口创建http任务：
+
+```cpp
+class WFTaskFactory
+{
+public:
+    static WFHttpTask *create_http_task(const std::string& url,
+                                        const std::string& proxy_url,
+                                        int redirect_max, int retry_max,
+                                        http_callback_t callback);
+};
+
+```
+
+其中proxy_url的格式为：http://user:passwd@your.proxy.com:port/
+
+proxy只能是"http://"开头，而不能是"https://"。port默认值为80。
+
+这个方法适用于http和https URL的代理，可以重定向，重定向时继续使用该代理服务器。
+
+30. 源码阅读顺序
+
+1. 了解源码中基本调用接口：tutorial是根据概念由浅入深的顺序编排的，先根据主页把tutorial试一下，对应的文档也可以先看完，然后看其他主题的文档，了解基本接口；
+
+2. 了解任务和工厂的关系：找到你平时最常用的一个场景（如果没有的话，可以从最常用的Http协议或其他网络协议入手，看看源码中factory和task的关系；
+
+3. 根据一个任务的生命周期看基本层次：gdb跟着这个场景看看整体调用流程经过那些层次，具体感兴趣的部分可以单独拿出来细读源码；
+
+4. 理解异步资源的并列关系：workflow内部多种异步资源是并列的，包括：网络、CPU、磁盘、计时器和计数器，可以了解下他们在源码中互相是什么关系；
+
+5. 底层具体资源的调度和复用实现：对epoll的封装或者多维队列去实现线程任务的调度，底层都有非常精巧的设计，这些可以在了解workflow整体架构之后深入细看
+
+31. 关于dissmiss
+
+所有的task如果create完，不用的话就dismiss，不然会泄漏(!!不要delete，不是亲手new的，就不要delete)
+
+dismiss 只是在创建完不想启动时调用，正常运行的task在callback之后自动回收
+
+32. 用户自定义协议demo
+
+https://github.com/sogou/workflow/blob/master/docs/tutorial-10-user_defined_protocol.md
+
+自定义时，模仿TutorialRequest, 继承PorotcolMessage
+
+33. HTTP 解析 (todo)
+
+https://github.com/sogou/workflow/issues/267
+
+34. http server机制 (todo)
+
+https://github.com/sogou/workflow/issues/538
+
+35. task定义中的assert
+
+```cpp
+
+template<class REQ, class RESP>
+class WFNetworkTask : public CommRequest
+{
+public:
+	/* start(), dismiss() are for client tasks only. */
+	void start()
+	{
+		assert(!series_of(this));
+		Workflow::start_series_work(this, nullptr);
+	}
+
+	void dismiss()
+	{
+		assert(!series_of(this));
+		delete this;
+	}
+    ... 
+};
+
+这里的assert目的:
+
+task的创建现在都走工厂create的模式，所以create出来的task是series为空的。这个时候，你可以把它串到其他series里，也可以直接start它，会内部检查如果你不在一个串行流上的话，给你创建一个series (todo : ??? 还不是很明白此处)
+
+36. 为何不用shared_ptr
+
+unique_ptr完全拥有所有权，解决的是帮我释放的问题；
+
+shared_ptr拥有共享的所有权，解决的是谁最后负责释放的问题；
+
+weak_ptr完全没有所有权，解决的是在某一时刻能不能获得所有权的问题
+
+在workflow的世界观里，所有我(task)分配的资源都是属于我(task)的，所以理应都由我来管理，并且保证所有资源都会在确定的时刻正确释放，用户只能在我(task)指定的时刻使用这些资源，所以不存在共享所有权的问题，也不存在让用户猜测某个时刻是否有所有权的问题。
+
+37. 内存管理机制
+
+继36再说这个问题
+
+任何任务都会在callback之后被自动内存回收。如果创建的任务不想运行，则需要通过dismiss方法释放。
+
+任务中的数据，例如网络请求的resp，也会随着任务被回收。此时用户可通过std::move()把需要的数据移走。
+
+SeriesWork和ParallelWork是两种框架对象，同样在callback之后被回收。
+
+如果某个series是parallel的一个分支，则将在其所在parallel的callback之后再回收。
+
+38. 什么都不干的task
+
+```cpp
+// src/factory/WFTaskFactory.h
+static WFEmptyTask *create_empty_task()
+{
+    return new WFEmptyTask;
+}
+```
+
+39. WFGoTask 
+
+todo : 用法类似于goroutine
+
+40. WFThreadTask 
+
+todo : 可以带上INPUT/OUTPUT作为模板
+
+41. CounterTask
+
+todo : 
+
+
+todo : counter 做全局开关
+
+A : 往series里放一个counter task，series就堵住了
+
+等到每一个想往series里加的任务想加的时候，你看看有没有counter，就有先打开这个开关就可以了
+
+这是counter的常见用法哈，延迟很低性能很好.
+
+Q : 如果在series里加入一个不会被执行的counter，那岂不是一直都不往下执行了吗?
+
+在加入下个新任务的时候，主动触发counter
+
+也是用个counter task来挂起series。要继续的时候触发counter就行了
+
+42. restful 接口
+
+框架做restful接口，怎么获取到请求过来的参数:
+
+需要自己在server的process函数里拿到request的path，自己进行解析和分发：task->get_req()->get_request_uri()可以拿到path部分进行不同restful路径的逻辑分发
+
+拿到uri后怎么获得path，query_param ? 另外http怎么取得链接的i地址，端口号 ?
+
+get_request_uri()这个函数可以拿到path和query_param，你需要自己切一下，比如127.0.0.1:1412/a?b=c你可以拿到/a?b=c。
+
+但ip和端口目前没有接口，你可以通过派生实现new_connection做
+
+其他接口看看src/protocol/HttpMessage.h这个文件
+
+todo : write a demo
+
+https://github.com/sogou/workflow/issues/356
+
+43. wait_group
+
+todo : 写个demo
+
+44. 
