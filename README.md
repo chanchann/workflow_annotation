@@ -8,7 +8,7 @@ workflow中文注释
 
 https://github.com/sogou/workflow/issues/246
 
-2. task都不阻塞，aio实现
+2. task都不阻塞，aio实现
 
 3. srpc 的 compress有压缩算法
 
@@ -548,4 +548,115 @@ https://github.com/sogou/workflow/issues/356
 
 todo : 写个demo
 
-44. 
+44. 只用wf做线程池，任务调度
+
+只关注WFGoTask就够了，用队列名来管理你想要的调度就行
+
+45. 基于counter实现多入边节点(node为什么基于WFCounterTask实现)
+
+https://github.com/sogou/workflow/issues/196
+
+46. 动态创建多个task，又希望这些task能被顺序的执行来避免多线程竞争
+
+https://github.com/sogou/workflow/issues/301
+
+47. BlockSeries
+
+Q : BlockSeries的实现 只管往series添加task和counter就行吧，不需要担心series的内存占用，也就是说task执行完了会自动从series里移除对吧？
+
+A : task执行完都会被销毁，和在哪个执行体里没关系的（比如自动给你分配的series或者你去指定的series）
+
+48. 内存分配
+
+内存分配交给jemalloc就够了，wf本身解决调度和异步资源
+
+49. post
+
+Q : 使用http task发送post的话，是不是获取到task的req对象，然后用req的append方法追加数据就行了？同时设置头部方法为post？
+
+A : 是的，content length如果你不填，会自动帮你填
+
+50. 内部有用 workflow作为算法模型的service 吗
+
+有的。目前用WThreadTask去做算法封装。然后server接到的任务是WFNetworkTask，做计算就起个WFThreadTask，那workflow就可以帮你做调度，不用担心卡住server接不到新请求。
+
+这是workflow计算通信融为一体的非常典型的用法
+
+51. wf的一些考虑
+
+workflow做了很多很多事情，核心就是在解决c++内存管理问题，workflow的世界里东西生命周期是很明确的，有点像“用户态<->框架态<->内核态”这样划分，所有权交回给用户的时候，生命周期是完全你管的，并且回调函数之后内存会被释放干净；而异步任务执行期间你是不能干预的，如果你有想干预的节点，自行拆开两个task。
+
+而不像nginx模块开发，写个模块，处理阶段的函数还要关心request的body里的指针你要维护好，读没读别搞错要不等下主框架就容易搞错这种情况。
+
+workflow也有个约定是谁申请谁释放，并且内部对所有异步资源的创建和管理都封装了起来，免去了开发者的操作的麻烦
+
+52. server task中的process也是并发的
+
+yes
+
+process并发的意思是多个请求来了会有多个线程在执行你的process，但每个process里只有一个线程在执行
+
+context是连接上下文，每个连接有一个context
+
+53. redis-cli 建立连接的过程是怎样的
+
+https://github.com/sogou/workflow/issues/330
+
+Q : mysql-cli我单步调试到Workflow::start_series_work 的时候会创建一个WFRouterTask,这个route是在哪个环节添加的任务？
+
+A : 解析url
+
+54. 关于错误码体系
+
+你从task->error拿到的错误码是workflow定义的；
+
+errno是系统用的，或者workflow框架用来标记系统的错误；
+
+55. httpServerTask，start之后，具体在哪触发process callback呢？
+
+linux下为例子，是使用epoll的，收到数据并切下消息就会触发process。
+
+56. msgqueue_put
+
+```cpp
+/src/kernel/msgqueue.c
+
+void msgqueue_put(void *msg, msgqueue_t *queue)
+{
+	void **link = (void **)((char *)msg + queue->linkoff);
+
+	*link = NULL;
+	pthread_mutex_lock(&queue->put_mutex);
+
+    ...
+}
+
+```
+
+首先这里void* 不能加减运算，但char* 可以
+
+这里就是一个queue，把msg传到queue的结尾
+
+
+```
+*link = NULL 这是 node->next = NULL的意思
+
+---------------------
+|                   |
+msg            link = msg + linkoff
+
+*link = NULL  后
+
+---------------------  nullptr
+|                   |
+msg            link = msg + linkoff
+
+```
+
+sizeof(msg) 跟 msg分配的大小可能不一样
+
+这是一种C的技巧，一个struct malloc的时候，分配大一点，size = sizeof(struct) + buffer，这样就可以避免两次内存分配，就是代码可读性变得难了不少
+
+这技巧C用的挺多的，C++直接可以用继承，也就没必要用
+
+msqqueue是epoll消息回来之后，以网络线程作为生产者往queue里放、执行线程作为消费者从queue里拿数据，从而做到线程互不干扰～所以windows没有哈，windows机制不一样用的iocp
