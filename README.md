@@ -8,7 +8,7 @@ workflow中文注释
 
 https://github.com/sogou/workflow/issues/246
 
-2. task都不阻塞，aio实现
+2. task都不阻塞，aio实现
 
 3. srpc 的 compress有压缩算法
 
