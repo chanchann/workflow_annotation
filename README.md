@@ -659,4 +659,251 @@ sizeof(msg) 跟 msg分配的大小可能不一样
 
 这技巧C用的挺多的，C++直接可以用继承，也就没必要用
 
-msqqueue是epoll消息回来之后，以网络线程作为生产者往queue里放、执行线程作为消费者从queue里拿数据，从而做到线程互不干扰～所以windows没有哈，windows机制不一样用的iocp
+msqqueue是epoll消息回来之后，以网络线程作为生产者往queue里放、执行线程作为消费者从queue里拿数据，从而做到线程互不干扰,用了锁，但是没内存拷贝(append还是拷贝了，无法避免)
+
+```cpp
+// src/kernel/Communicator.h
+void Communicator::callback(struct poller_result *res, void *context)
+{
+	Communicator *comm = (Communicator *)context;
+	msgqueue_put(res, comm->queue);
+}
+```
+
+msg其实是struct poller_result
+
+这个队列是可以换别的，比如workstealing，或者不切队列直接调起（muduo默认的调起functor也是不切
+
+communicator层是完整收完一个协议级别的消息的，poller是每次的收发
+
+57. 在谈msgqueue
+
+msg头部偏移linkoff字节，是链表指针的位置。使用者需要留好空间。这样我们就无需再malloc和free了
+
+1)msgqueue(消息队列)和任务队列(list封装的)大概的功能是什么那？二者大概是如何配合使用的?
+
+https://github.com/sogou/workflow/issues/162
+
+2)为什么msgquque要自己实现一个?
+
+https://github.com/sogou/workflow/issues/349
+
+3) [BUG] kernel/msgqueue.h -- Not Bug.
+
+https://github.com/sogou/workflow/issues/353
+
+58. 如何看poller相关代码
+
+https://github.com/sogou/workflow/issues/351
+
+59. 离散内存和zero_copy一些思考
+
+https://zhuanlan.zhihu.com/p/141485764
+
+A : 离散内存其实作用范围很特殊，目前在序列化和io结合的地方用比较有效果，为什么呢，因为序列化的时候，往往不知道目标内存块的大小，一边序列化，一边内存块在增长，以往我们都是扩展内存块，加上内存拷贝来解决这个问题的，但是内，由于io某些os实现了gantherio，这东西能一次性发送多块内存到tcp栈，有人就动起来小脑筋，嗯哼，那我扩展内存的时候，就表加大内存块的大小，而是增加内存块的数量，这样就减少了多次合并内存的内存拷贝了吗，真是太机智了，想想都小激动。这块目前我看做的比较好的开源的就是https://www.boost.org/doc/libs/1_75_0/libs/beast/doc/html/beast/ref/boost__beast__multi_buffer.html
+
+B: srpc当时的改动也是类似这样的考虑，内部是个多块的固定大小的内存链表～然后序列化和解压就一键打通了
+
+其实主要压缩的话，有时候我们没办法知道原始内存应该多大。那些压缩算法算出来的理论最大值太大了，不可能跟着他们的去malloc
+
+60. 目前每次发起一个请求都需要create_http_task下，有没有什么方式来重用这个http_task？
+
+A : 不需要重用
+
+长连接不需要每次connect，task个连接是两码事
+
+Q : 如果发起第二次请求，重新create_http_task么？
+
+对， 内部如果有空闲连接会帮你复用
+
+再谈这个task重用问题:
+
+```cpp
+
+class WFGoTask : public ExecRequest
+{
+public:
+	void start()
+	{
+		assert(!series_of(this));
+		Workflow::start_series_work(this, nullptr);
+	}
+    ...
+
+protected:
+	virtual SubTask *done()
+	{
+		SeriesWork *series = series_of(this);
+
+		if (this->callback)
+			this->callback(this);
+
+		delete this;
+		return series->pop();
+	}
+    ...
+};
+```
+
+此处done了就delete this了
+
+设计上是不需要重用因为task只是一个很轻量级的单位（比用户态栈要轻多了）
+
+如果非要重用，需要改许多许多东西（因为不符合现在的设计理念。
+
+61. create了5个go_task,放到series_work中执行,然后退出. gdb调试发现有20+个线程created. 这个线程为啥created这么多?
+
+这个是默认线程池的大小
+
+1) go task是计算任务，一旦有计算任务，就会创建计算线程池；
+
+2) 默认计算线程池会开本机核数相等的线程数；大小可以改，这个你可以看看文档怎么改配置
+
+3) 没有用到的资源不会创建（比如网络线程池。或者如果只用网络，不会创建计算线程资源；
+
+62. proxy
+
+Q : 看了下proxy的教程，原始的task在serie没有结束的时候是不会被销毁的，对吗。
+
+如果task没执行，那就是还在series的队列里呢，不会销毁～如果task执行完了就销毁了～
+
+But
+
+server的话，就不一样了哈，server的task是被动产生的，所以它会持续到series结束。而proxy的例子是个server的task
+
+这个区分角度是从task是我们主动创建还是被动创建区分的。mysql task我们一般只用做client～就是执行完销毁的
+
+为什么server task是这样的。
+
+1) 因为client task的“执行”，指的是“发送request - 收回response”；而server task的“执行”，指的是“收到request - 回复response”；
+
+2) 而server“回复response”的时机是series里没有东西了再回复（毕竟我们要实现异步server）；
+
+3) 所以server task的生命会持续到series结束，本质是在于它还没执行完回复。
+
+63. https 代理
+
+https://github.com/sogou/workflow/issues/379
+
+64. task之间传递结果,有什么标准做法吗?
+
+task有一个user_data，以及series上的context，都是用来传递“非框架管理生命周期”的所有数据的。
+
+user_data属于task，所以它使用的时期是task开始前和它的callback里；
+
+context属于seires，所以它的使用时期是整个任务流所有task可以共享的；
+
+65. tutorial03里面，series和http_task和redis_task有可能会被不同的线程执行吗？
+
+一个series只能保证串行执行，不能保证同一个线程
+
+66. 作为http client ,create_http_task.之后在哪里 设置post data呢?
+
+req->append_output_body()
+
+67. 服务端收到两个先后请求，在WF中这两个请求代表两个series，他们之间的上下文怎么使用？
+
+给server的那个function本身就是个自带上下文的结构哈，举个例子你可以bind某个类的成员函数进去，这个类就是你多个请求可以共享的上下文
+
+Q : bind类成员确实可以解决多个请求的上下文需求，但是并发情况下，多组的多个上下文请求似乎还是无法满足
+
+A : 什么是多组的多个上下文呢？是不是比如消息多条为一组？感觉这种需要协议层面去解决吧，server怎么知道谁属于一组呢？一般不是协议里拆开写着我这个是frame1-frame2-frameOK之类的？
+
+Q : 多组的意思是clientA登录会发消息A->B->C(三个)；clientB登录也会发A->B->C(三个)，这就是两组
+
+暂时是以client的地址+端口组作为key，context存redis解决
+
+A : 需要全局维护一个数据结构（存redis道理上也是一样的），用key做区分，就是正确的做法了。怎么区分（client地址）、怎么聚合（A->B->C
+
+也许传统的方式是一个fd上有一个上下文，但这种模式连接就不能复用了哈，对client来说并发度就不如复用的好，考虑点不一样
+
+Q : client端的context复用使用series.context 就挺好；但是server端 series在消息间是割裂的
+
+A : 其实client端的context是任务流的上下文，只是因为你把A->B->C串一起了，所以才会看到连续的；server的series是被动创建，是一直还在的，你可以往当前的series后面放东西，比如做proxy，这些也是共享series.context，也是连续的
+
+只是本质上你可以主动组织client task，却不能组织server task。因为server总是个被动的角色
+
+Q : 只是本质上你可以主动组织client task，却不能组织server task。因为server总是个被动的角色
+
+A : 可是如果一个fd上收到的消息切下来产生一个server task，server task作为proxy要往后传、proxy回来我再回给用户。那不就冲突了么
+
+我这个当前的series，是串下一个server task呢，还是proxy task呢
+
+毕竟series只能串行执行，但这些都是可以并行的
+
+我感觉这个现在就可以解决了呀？自行按client的信息拆分。如果通用点来说，你要收的消息是无论哪个client过来，只要一个A、一个B、一个C来了你就可以做接下来的事情，那么这个区分的逻辑就又不一样了，这都是开发者自己的逻辑哈
+
+
+Q : 我说这个问题，就是说WF是异步框架，为了解决server端的这个问题，我又引入了新的依赖redis解决多线程问题，有点冗余
+
+A : 你可以全局一个map<string, ctx>
+
+Q : map不会有并发问题吗
+
+A : 除了插入新key需要自己加锁，好像你本来cleint发过来的东西就是串行的吧？拿出来用没事
+
+用redis肯定读都得加锁、还得跨进程（maybe跨机器），更费劲哈。本地存可以的
+
+Q : 想着如果wf 能够提供socket的context这样就方便许多
+
+A : 如果你只需要socket的context，是有的，有个get_connection()接口，主要是二次开发的人用的哈。client都用（因为client发消息往往需要握手、认证、再发），server你可以做二次开发，自己往connection上放应该也可以。你可以看看
+
+Q : get_connection()和socket似乎不对应，之前我试过connection的context，connection很容易就释放掉了
+
+A : connetciont就是socket，如果你是短连接那当然释放了
+
+issue : server端如何复用一组消息的context？
+
+https://github.com/sogou/workflow/issues/410
+
+68. 当收到Transfer-Encoding: chunked包的时候，http_parser_get_body只返回了原始数据，没有重新组包，导致夹杂chunked的包不能使用。
+
+见22 : https://github.com/sogou/workflow/issues/170
+
+为了考虑效率不会自动解chunk，你有接口可以调
+
+69. 创建好任务流之后.在任务流执行完之前,如何优雅的提前退出这个任务流?
+
+https://github.com/sogou/workflow/issues/422
+
+70. SeriesWork 只要没有结束,可以一致push_back 新的 task 运行, ParalleWork 一旦Start之后,后面addSeries 的任务都不执行.
+
+有没有办法让ParalleWork也能动态执行后面添加的taskflow呢
+
+A : parallel start后，下次再拿到parallel已经是parallel callback了（这里估计是个const parallel），应该没有时机add series吧
+
+Q : 我现在的场景,有一个线程常驻 搜索局域网设备. 每搜到一个设备 就需要开启一个SeriesWork来做升级. 因为需要支持批量并行升级.就想在ParalleWork里面动态执行seriesWork
+
+A : series本身就是并行跑的
+
+parallel本身也是多个series组成，只是会等所有series结束之后你拿到那个callback的时机。除非你需要这个时机否则不需要套一个parallel
+
+直接用SeriesWork也可
+
+71. series内串行、多个series可以并行
+
+72. WFHttpServer调了stop，会不会等待所有的http task执行完成？还是说会直接终止掉所有的？
+
+A : 会终止等待，任务会拿到aborted的状态
+
+Q : 有没有方法等所有的task结束再退出？
+
+这样的话，你可以：
+
+1) 全局记录两个值：count=0；stopped=false；
+
+2) server每收到一个task，如果stopped不为true：计数count++；否则不处理结果直接拒绝；
+
+3) server task设置callback，这个callback里count—；
+
+4) server继续做事情，包括异步请求别的地方等等；
+
+5) 处理完之后，server会自动回复，回复完对方才会调用到刚才设置的callback；
+
+6) 你想stop的时候，stopped=true，然后等这个count变回0就行。
+
+73. workflow的dns解析异步
+
+https://github.com/sogou/workflow/issues/462
+
+
