@@ -410,15 +410,27 @@ proxy只能是"http://"开头，而不能是"https://"。port默认值为80。
 
 30. 源码阅读顺序
 
-1. 了解源码中基本调用接口：tutorial是根据概念由浅入深的顺序编排的，先根据主页把tutorial试一下，对应的文档也可以先看完，然后看其他主题的文档，了解基本接口；
+1） 了解源码中基本调用接口：tutorial是根据概念由浅入深的顺序编排的，先根据主页把tutorial试一下，对应的文档也可以先看完，然后看其他主题的文档，了解基本接口；
 
-2. 了解任务和工厂的关系：找到你平时最常用的一个场景（如果没有的话，可以从最常用的Http协议或其他网络协议入手，看看源码中factory和task的关系；
+2）了解任务和工厂的关系：找到你平时最常用的一个场景（如果没有的话，可以从最常用的Http协议或其他网络协议入手，看看源码中factory和task的关系；
 
-3. 根据一个任务的生命周期看基本层次：gdb跟着这个场景看看整体调用流程经过那些层次，具体感兴趣的部分可以单独拿出来细读源码；
+3) 根据一个任务的生命周期看基本层次：gdb跟着这个场景看看整体调用流程经过那些层次，具体感兴趣的部分可以单独拿出来细读源码；
 
-4. 理解异步资源的并列关系：workflow内部多种异步资源是并列的，包括：网络、CPU、磁盘、计时器和计数器，可以了解下他们在源码中互相是什么关系；
+4) 理解异步资源的并列关系：workflow内部多种异步资源是并列的，包括：网络、CPU、磁盘、计时器和计数器，可以了解下他们在源码中互相是什么关系；
 
-5. 底层具体资源的调度和复用实现：对epoll的封装或者多维队列去实现线程任务的调度，底层都有非常精巧的设计，这些可以在了解workflow整体架构之后深入细看
+5) 底层具体资源的调度和复用实现：对epoll的封装或者多维队列去实现线程任务的调度，底层都有非常精巧的设计，这些可以在了解workflow整体架构之后深入细看
+
+also :
+
+1) 先跑一下官方例子
+
+2) 看WFTaskFactory.h中都有什么任务，了解每个任务的作用
+
+3) 从thread task入手，相对而言比较容易理解（因为不涉及网络相关的内容），最主要的是了解workflow中“任务”到底是什么（透露一下，在SubTask.h中定义）；这部分主要涉及kernel中的线程池和队列
+
+4) 然后开始看Timer task，了解下怎么实现一个异步的定时器，这个时候就开始接触Communicator和Session了（这个是个比较核心的内容）
+
+5) 再看网络相关的task，建议直接入手WFComplexClientTask，http task或redis task只是协议不同，本质都是一个WFComplexClientTask，了解这个，就基本了解网络相关的任务了
 
 31. 关于dissmiss
 
@@ -906,4 +918,126 @@ Q : 有没有方法等所有的task结束再退出？
 
 https://github.com/sogou/workflow/issues/462
 
+74. server task 生命周期相关
 
+https://zhuanlan.zhihu.com/p/391013518
+
+75. server和client端有没有连接建立 和 连接断开的回调函数 开放给用户？ 另外，如果想做client与server端订阅推送，能支持吗
+
+workflow的概念是这样，你是不能直接管理一个fd的概念的，如果你对连接有保持或者断开的需求，你可以keepalive去决定
+
+连接都是默认建立的，出错了会自动断开，跑一个mysql任务，建立连接这些都是透明的
+
+然后订阅：可以的，有一个first_timeout接口你可以看看文档。
+
+大概意思是client发请求给server的话，server第一次给我回复的超时是多久。如果我们允许订阅最多1小时的信息，这个值为1小时，连接会一直保持直到server有数据给我
+
+Q : 我的场景是 client通过tcp连接上server后，server可以保存这个session，然后后续会持续往这个session推数据流
+
+A : 用websocket，下次收到数据继续订阅就可了
+
+Q : websocket应该是可以的, 不过感觉tcp会快一些，偏底层一点
+
+A : websocket本身除了http握手，其他都是tcp，包头非常小
+
+这个与网络传输和处理速度相比，基本不值一提。
+
+76. 用workflow做客户端压测工具，并发300有一批提resource temporarily.unavailable。300应该不会资源不够吧，是不是哪里用错了？
+
+用法说明：
+
+1) 创建pwork
+
+2） for 循环调用create_client_task，创建task，然后调用create_series_work(task)创建swork，pwork->add_series(swork)。
+
+3） start pwork，wait。
+
+A : 全局对每个目标ip最大连接数是200，你可以看看settings.endpoint_params.max_connections，文档里有说这个
+
+另外由于是异步，你最好每个任务回来之后再发起下一个哈，这样才能保证持续的并发压力是300来着
+
+77. 在workflow里面怎么统计某个消息，从请求进来，到应答出去  在系统内部的穿透延时？
+
+这个workflow没有，你有需要可以自己做。workflow的定位是这些都可以外部开发的
+
+srpc有个span可以统计延时，你可以看看
+
+https://github.com/sogou/srpc/issues/86
+
+可以做抽样打log检查请求耗时这样～
+
+78. 关于项目内c风格代码(kernel)
+
+kernel里的代码是c风格的，一方面是性能快，另一方面是某些模块比如communicator，是有出处的（从内部存储项目演变过来）所以kernel代码是c，但并不多，外层都是c++。
+
+79. 关于特化
+
+```
+/src/server/WFHttpServer.h
+template<>
+inline WFHttpServer::WFServer(http_process_t proc) :
+	WFServerBase(&HTTP_SERVER_PARAMS_DEFAULT),
+	process(std::move(proc))
+{
+}
+```
+
+因为server是用户构造的，所有用户拿到的类型都是一个类型，所以这里用了特化，而大家拿到的都是一个WFServer
+
+只有一层不同没有必要行为派生
+
+client的派生要复杂得多，拿到的是个client task，但new出来是个复合任务，没法通过简单的特化来做
+
+server的行为足够简单，而client不可能通过偏特化来实现，因为派生层级不止一层
+
+80. 如果我不采用websocket，而是服务端通过http chunk建立一个持久连接  有新消息时就推送，是不是效果也一样？而且chunk中途部分只传输长度和内容  似乎消耗更少
+
+workflow框架默认的网络模式是一来一回的，也就是说推送过来之后client需要给server发东西、server才能继续发。另外断了是否重连如果这种模式，需要你自行解决。
+
+websocket的协议里，基本也就是长度和内容，没有什么区别吧
+
+wf中websocket是第一个非一来一回的协议
+
+81. 希望能出一个基于tcp协议的非一来一回的方式，这样才能方便做到client端只请求一次，然后server端就一直往client端推送数据
+
+https://github.com/holmes1412/workflow-major/blob/channel/tutorial/tutorial-10-user_defined_protocol/channel_client.cc
+
+自定义tcp协议、双工client的例子
+
+你需要使用websocket分支，因为网络框架目前在这个分支上。然后这个自定义协议里的协议就是原tutorial10里的那个，是可以和原server互通的
+
+82. timer task 被进程退出打断时，其所在series的callback会被调起吗？
+
+1) timerfd本身是可以被中断的，从epoll删掉就行；
+
+2) series callback会被调起，会拿到一个ABORTED；
+
+83. 这里 timer 退出的时候为什么需要加这个锁呀？
+
+
+
+```cpp
+void timer_callback(WFTimerTask *timer)
+{
+    mutex.lock();
+    if (!program_terminate)
+    {
+        WFHttpTask *task;
+        if (urls_to_fetch > 0)
+        {
+            task = WFTaskFactory::create_http_task(...);
+            series_of(timer)->push_back(task);
+        }
+
+        series_of(timer)->push_back(WFTaskFactory::create_timer_task(1, 0, timer_callback));
+    }
+    mutex.unlock();
+}
+
+```
+
+https://github.com/sogou/workflow/issues/528
+
+84. kernel中list -- 内核实现
+
+这个list的好处是可以把一个数据结构既加入list也加入rbtree～内部超时有这种用法。好用就沿用了这些结构了
