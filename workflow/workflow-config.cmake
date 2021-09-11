@@ -25,8 +25,8 @@ endmacro()
 ####################################################################################
 
 set(WORKFLOW_VERSION "0.9.7")
-set_and_check(WORKFLOW_INCLUDE_DIR "/home/ysy/workflow/_include")
-set_and_check(WORKFLOW_LIB_DIR "/home/ysy/workflow/_lib")
+set_and_check(WORKFLOW_INCLUDE_DIR "/home/ysy/workflow_annotation/workflow/_include")
+set_and_check(WORKFLOW_LIB_DIR "/home/ysy/workflow_annotation/workflow/_lib")
 
 if (EXISTS "${CMAKE_CURRENT_LIST_DIR}/workflow-targets.cmake")
     include ("${CMAKE_CURRENT_LIST_DIR}/workflow-targets.cmake")

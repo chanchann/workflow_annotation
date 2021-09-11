@@ -104,6 +104,7 @@ using dynamic_create_t = std::function<SubTask *(WFDynamicTask *)>;
 
 class WFTaskFactory
 {
+// 创建协议相关的应用层task
 public:
 	static WFHttpTask *create_http_task(const std::string& url,
 										int redirect_max,
@@ -150,7 +151,7 @@ public:
 	static WFDnsTask *create_dns_task(const ParsedURI& uri,
 									  int retry_max,
 									  dns_callback_t callback);
-
+// 创建文件相关的task
 public:
 	static WFFileIOTask *create_pread_task(int fd,
 										   void *buf,
@@ -212,7 +213,7 @@ public:
 											  int iovcnt,
 											  off_t offset,
 											  fvio_callback_t callback);
-
+// 创建定时器相关的task
 public:
 	static WFTimerTask *create_timer_task(unsigned int microseconds,
 										  timer_callback_t callback);
@@ -256,6 +257,7 @@ public:
 	 * creation, and more than one counter may reach target value. */
 	static void count_by_name(const std::string& counter_name, unsigned int n);
 
+// 创建Mail相关的task
 public:
 	static WFMailboxTask *create_mailbox_task(size_t size,
 											  mailbox_callback_t callback);
@@ -263,6 +265,7 @@ public:
 	/* Use 'user_data' as mailbox. Store only one message. */
 	static WFMailboxTask *create_mailbox_task(mailbox_callback_t callback);
 
+// 创建条件相关的task
 public:
 	static WFConditional *create_conditional(SubTask *task, void **msgbuf)
 	{
@@ -294,6 +297,8 @@ public:
 	static WFDynamicTask *create_dynamic_task(dynamic_create_t create);
 };
 
+// 网络task工厂
+// todo : 与上面WFTask作比较，
 template<class REQ, class RESP>
 class WFNetworkTaskFactory
 {
