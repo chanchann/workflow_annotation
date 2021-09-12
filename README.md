@@ -1,10 +1,12 @@
-# workflow_annotation
+# Using workflow in a modern way
 
-workflow中文注释
+workflow中文注释 / demo / 问题解答
 
 ## demos
 
 1. 
+
+2. process中stop demo，见#90
 
 ## 总结一下平时水群的问题
 
@@ -24,35 +26,11 @@ pread / preadv 语义一致
 
 读的块的个数和每个块多大，和操作系统语义一样
 
-5. 裸的tcp连接
+5. tcp server
 
-src/factory/WFTaskFactory.h
+见tutorial 10
 
-```cpp
-template<class REQ, class RESP>
-class WFNetworkTaskFactory
-{
-private:
-	using T = WFNetworkTask<REQ, RESP>;
-
-public:
-	static T *create_client_task(TransportType type,
-								 const std::string& host,
-								 unsigned short port,
-								 int retry_max,
-								 std::function<void (T *)> callback);
-    ...
-public:
-	static T *create_server_task(CommService *service,
-								 std::function<void (T *)>& process);
-};
-```
-
-网络连接的话，工厂是可以由request和response类型作为模版去指定的，然后你的WFNetworkTaskFactory<MyREQ, MyRESP> myfactory;
-
-调用的时候： myfactory->crreate_client_task(TT_TCP_SSL, xxx, xxx, …);
-
-自己写server需要自定义协议的话，可以根据tutorial-10看看
+https://github.com/sogou/workflow/issues/40
 
 6. What is pipeline server? todo:
 
@@ -1047,3 +1025,52 @@ https://github.com/sogou/workflow/issues/528
 84. kernel中list -- 内核实现
 
 这个list的好处是可以把一个数据结构既加入list也加入rbtree～内部超时有这种用法。好用就沿用了这些结构了
+
+85. 关于大量使用裸指针
+
+https://github.com/sogou/workflow/issues/29
+
+项目用到现代C++的地方少，必须掌握也就function和move。
+
+最大的遗憾还是11没有any，有几处用户接口用了void *，导致和现代c++的结合不太自然。后面我们再做上面的生态项目的话，代码风格会现代一些。
+
+这个项目就当纪念一下传统OOP吧。
+
+86. How to get multi-part form file from the http request?
+
+https://github.com/sogou/workflow/issues/28
+
+87. 深入谈wf任务
+
+关于自定义协议的client/server，简单的就像turtorial-10那么实现就可以了。默计包含了DNS和retry功能。
+
+而功能更强的client/server实现可以非常非常复杂。
+
+http任务里，会自动补全header，会自动计算连接保持时间，client会redirect，server会自动识别连接保证次数，精确处理Expect: 100-continue请求。
+
+redis任务里，包含了自动登陆的交互过程，数据库id的选取。
+
+mysql任务，包含了复杂的登陆过程，对server发来的挑战数计算，字符集和数据库选取，更有复杂的事务状态处理，并且一切都是全异步的。mysql任务的实现几乎挑战了我们任务交互功能的极限。
+
+kafka任务是一种典型的分布式任务，交互上主要是各种meta信息的更新，路由，rebalance等。kafka协议虽然复杂，但对我们框架来讲更为友好，因为我们天生适合分布式系统的实现。
+
+所有协议不支持pipeline server，可以实现pipeline client，但有损系统美感，目前没有提供相关实现。之后打算直接上streaming引擎。
+
+88. 关于引发惊群
+
+todo 
+
+https://github.com/sogou/workflow/issues/38
+
+89. Everything is non-blocking, please make sure your main process doesn’t terminate unexpectedly.
+
+https://github.com/sogou/workflow/issues/76
+
+90. 在server的process函数里关停server的方法(Shutdown server in server’s process function) 
+
+https://github.com/sogou/workflow/issues/89
+
+91. 关于请求限制
+
+https://github.com/sogou/workflow/issues/135
+
