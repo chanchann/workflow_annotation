@@ -50,7 +50,7 @@ void wget_callback(WFHttpTask *task) {
 									req->get_method(),
 									req->get_http_version(),
 									req->get_request_uri());
-
+	// 需要说明cursor 中 find()接口会修改cursor内部的指针，即使用过find()过后如果仍然想对header进行遍历，需要通过rewind()接口回到cursor头部。
 	protocol::HttpHeaderCursor req_cursor(req);
 
 	while (req_cursor.next(name, value))
@@ -72,9 +72,12 @@ void wget_callback(WFHttpTask *task) {
 	size_t body_len;
 
 	resp->get_parsed_body(&body, &body_len);
+	
+	// write body to file
 	FILE *fp = fopen("res.txt", "w");
 	fwrite(body, 1, body_len, fp);
 	fclose(fp);
+
 	spdlog::info("Success. Press Ctrl-C to exit.");
 }
 
@@ -93,17 +96,19 @@ int main() {
 		url = "http://" + url;
 	}
 
+	// 创建并启动http任务
+	// 所有工厂函数不会返回失败，所以不用担心task为空指针，哪怕是url不合法。一切错误都在callback再处理
 	auto task = WFTaskFactory::create_http_task(url, 
                                             REDIRECT_MAX, 
                                             RETRY_MAX,
 										    wget_callback);
-                                            
+    // req默认是GET方法，HTTP/1.1，长连接。框架会自动加上request_uri(/)，Host(www.baidu.com)等。      
 	protocol::HttpRequest *req = task->get_req();
 	req->add_header_pair("Accept", "*/*");
 	req->add_header_pair("User-Agent", "Wget/1.14 (linux-gnu)");
 	req->add_header_pair("Connection", "close");
-	task->start();
-
+	task->start(); // 非阻塞，并且不会失败
+	// 因为异步的原因，start以后显然不能再用task指针了。
 	wait_group.wait();
 	return 0;
 }

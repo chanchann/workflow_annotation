@@ -121,6 +121,7 @@ public:
 	int start(const struct sockaddr *bind_addr, socklen_t addrlen,
 			  const char *cert_file, const char *key_file);
 
+	// 最后两个带listen_fd的serve()接口，主要用于优雅重启。或者简单建立一个非TCP协议（如SCTP）的server。
 	/* To start with a specified fd. For graceful restart or SCTP server. */
 	int serve(int listen_fd)
 	{
