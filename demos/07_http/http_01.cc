@@ -9,8 +9,8 @@
 
 using namespace protocol;
 
-#define redirect_max 4
-#define retry_max 2
+#define REDIRECT_MAX 4
+#define RETRY_MAX 2
 
 void http_callback(WFHttpTask *task)
 {
@@ -41,10 +41,14 @@ int main()
 {
     signal(SIGINT, sig_handler);
     std::string url = "http://www.baidu.com";
+    // 通过create_xxx_task创建的对象为任务，一旦创建，必须被启动或取消
     WFHttpTask *task = WFTaskFactory::create_http_task(url,
-                                                       redirect_max,
-                                                       retry_max,
+                                                       REDIRECT_MAX,
+                                                       RETRY_MAX,
                                                        http_callback);
+    // 通过start,自行以task为first_task创建一个串行并理解启动任务
+    // 任务start后，http_callback回调前，用户不能再操作该任务
+    // 当http_callback任务结束后，任务立即被释放
     task->start();
     wait_group.wait();
 }
