@@ -20,8 +20,8 @@ void http_callback(WFHttpTask *task) {
     const void* body;
     size_t body_len;
     resp->get_parsed_body(&body, &body_len);
-    
-    	// write body to file
+
+    // write body to file
 	FILE *fp = fopen("res.txt", "w");
 	fwrite(body, 1, body_len, fp);
 	fclose(fp);
