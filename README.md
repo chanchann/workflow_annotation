@@ -998,8 +998,6 @@ https://github.com/holmes1412/workflow-major/blob/channel/tutorial/tutorial-10-u
 
 83. 这里 timer 退出的时候为什么需要加这个锁呀？
 
-
-
 ```cpp
 void timer_callback(WFTimerTask *timer)
 {
@@ -1024,6 +1022,8 @@ https://github.com/sogou/workflow/issues/528
 
 84. kernel中list -- 内核实现
 
+todo 
+
 这个list的好处是可以把一个数据结构既加入list也加入rbtree～内部超时有这种用法。好用就沿用了这些结构了
 
 85. 关于大量使用裸指针
@@ -1034,13 +1034,17 @@ https://github.com/sogou/workflow/issues/29
 
 最大的遗憾还是11没有any，有几处用户接口用了void *，导致和现代c++的结合不太自然。后面我们再做上面的生态项目的话，代码风格会现代一些。
 
-这个项目就当纪念一下传统OOP吧。
-
 86. How to get multi-part form file from the http request?
+
+Content-Type用来指定资源类型，multipart/form-data专用有效的传输文件
+
+todo : demo
 
 https://github.com/sogou/workflow/issues/28
 
 87. 深入谈wf任务
+
+todo: 
 
 关于自定义协议的client/server，简单的就像turtorial-10那么实现就可以了。默计包含了DNS和retry功能。
 
@@ -1058,7 +1062,7 @@ kafka任务是一种典型的分布式任务，交互上主要是各种meta信�
 
 88. 关于引发惊群
 
-todo 
+todo : 
 
 https://github.com/sogou/workflow/issues/38
 
@@ -1066,11 +1070,16 @@ https://github.com/sogou/workflow/issues/38
 
 https://github.com/sogou/workflow/issues/76
 
+这里就是上面说的wait_group
+
 90. 在server的process函数里关停server的方法(Shutdown server in server’s process function) 
 
 https://github.com/sogou/workflow/issues/89
+
+code : [code](./demos/02_stop)
 
 91. 关于请求限制
 
 https://github.com/sogou/workflow/issues/135
 
+code : [code](./demos/08_max_con)
