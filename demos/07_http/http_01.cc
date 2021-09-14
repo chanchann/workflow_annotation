@@ -21,10 +21,10 @@ void http_callback(WFHttpTask *task) {
     size_t body_len;
     resp->get_parsed_body(&body, &body_len);
     
-    	// write body to file
-	FILE *fp = fopen("res.txt", "w");
-	fwrite(body, 1, body_len, fp);
-	fclose(fp);
+    // write body to file
+    FILE *fp = fopen("res.txt", "w");
+    fwrite(body, 1, body_len, fp);
+    fclose(fp);
 
     spdlog::info("write file done");
 }
