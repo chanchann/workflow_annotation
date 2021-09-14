@@ -21,7 +21,6 @@
 // 回复消息的时机是在series里所有其它任务被执行完后，自动回复，所以并没有task->reply()接口。
 
 // usage : curl -x http://localhost:8888/ http://www.baidu.com
-
 struct tutorial_series_context {
 	std::string url;   // url主要是后续打日志之用
 	WFHttpTask *proxy_task;
