@@ -42,13 +42,16 @@ int main()
     signal(SIGINT, sig_handler);
     std::string url = "http://www.baidu.com";
     // 通过create_xxx_task创建的对象为任务，一旦创建，必须被启动或取消
+    // 工厂函数创建的对象的生命周期均由内部管理
     WFHttpTask *task = WFTaskFactory::create_http_task(url,
                                                        REDIRECT_MAX,
                                                        RETRY_MAX,
                                                        http_callback);
     // 通过start,自行以task为first_task创建一个串行并理解启动任务
     // 任务start后，http_callback回调前，用户不能再操作该任务
-    // 当http_callback任务结束后，任务立即被释放
+    // 在一个task被直接或间接 dismiss/start 之后，用户不再拥有其所有权
+    // 此后用户只能在该task的回调函数内部进行操作
     task->start();
+    // 当http_callback任务结束后，任务立即被释放
     wait_group.wait();
 }

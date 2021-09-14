@@ -35,16 +35,27 @@
 #include "Workflow.h"
 #include "WFConnection.h"
 
+
+// task->get_state() 
+// state代表任务的结束状态
 enum
 {
 	WFT_STATE_UNDEFINED = -1,
-	WFT_STATE_SUCCESS = CS_STATE_SUCCESS,
+	WFT_STATE_SUCCESS = CS_STATE_SUCCESS,  // 任务成功。client接收到完整的回复，或server把回复完全写进入发送缓冲（但不能确保对方一定能收到）。
 	WFT_STATE_TOREPLY = CS_STATE_TOREPLY,		/* for server task only */
 	WFT_STATE_NOREPLY = CS_STATE_TOREPLY + 1,	/* for server task only */
-	WFT_STATE_SYS_ERROR = CS_STATE_ERROR,
-	WFT_STATE_SSL_ERROR = 65,
-	WFT_STATE_DNS_ERROR = 66,					/* for client task only */
-	WFT_STATE_TASK_ERROR = 67,
+	WFT_STATE_SYS_ERROR = CS_STATE_ERROR,   // 系统错误。这种情况，task->get_error()得到的是系统错误码errno。
+											// 当get_error()得到ETIMEDOUT，可以调用task->get_timeout_reason()进一步得到超时原因
+
+	WFT_STATE_SSL_ERROR = 65,				// SSL错误。get_error()得到的是SSL_get_error()的返回值
+											// 目前SSL错误信息没有做得很全，得不到ERR_get_error()的值。
+											// 所以，基本上get_error()返回值也就三个可能 : SSL_ERROR_ZERO_RETURN, SSL_ERROR_X509_LOOKUP, SSL_ERROR_SSL。
+
+	WFT_STATE_DNS_ERROR = 66,				/* for client task only */   
+											// DNS解析错误。get_error()得到的是getaddrinfo()调用的返回码
+											// https://github.com/sogou/workflow/blob/master/docs/about-error.md
+											
+	WFT_STATE_TASK_ERROR = 67,  			// 任务错误。常见的例如URL不合法，登录失败等
 	WFT_STATE_ABORTED = CS_STATE_STOPPED		/* main process terminated */
 };
 

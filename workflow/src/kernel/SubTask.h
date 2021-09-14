@@ -23,6 +23,7 @@
 
 class ParallelTask;
 
+// SubTask是所有Task类型的基类
 class SubTask
 {
 public:

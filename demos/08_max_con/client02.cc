@@ -1,43 +1,42 @@
-// 同时发起多个http请求
+// 模拟 https://github.com/sogou/workflow/issues/135
 
 #include <workflow/Workflow.h>
 #include <workflow/WFTaskFactory.h>
 #include <workflow/WFFacilities.h>
 #include <spdlog/spdlog.h>
 #include <vector>
+#include <atomic>
 
 using namespace protocol;
 
 const int k_redirect_max = 4;
 const int k_retry_max = 2;
 
+std::atomic<int> seq;
+
 void http_callback(WFHttpTask *task)
 {
-    HttpRequest *req = task->get_req();
-    HttpResponse *resp = task->get_resp();
-    spdlog::info("req uri : {}, resp status : {}",
-                 req->get_request_uri(), resp->get_status_code());
+    spdlog::info("state : {}, err : {}, seq : {}",
+                 task->get_state(), task->get_error(), seq++);
 }
 
 int main()
 {
-    std::vector<std::string> urls = {
-        "http://www.baidu.com",
-        "http://www.bing.com",
-        "http://www.sogo.com"};
+    std::string url = "http://127.0.0.1:8888/";
+
+    struct WFGlobalSettings settings = GLOBAL_SETTINGS_DEFAULT;
+    settings.endpoint_params.max_connections = 1024;
+    WORKFLOW_library_init(&settings);
 
     WFFacilities::WaitGroup wait_group(1);
-    // 可以创建一个空的并行，然后通过add_series接口向并行中添加串行
-    // 也可以在创建时指定一组串行
-    // 并行本身也是一种任务，所以并行也可以放到串行中。
-    // 回调函数用于通知用户该并行中的串行均已完成，不能再继续添加新的串行，且回调函数结束后，该并行会立即被销毁。
+
     ParallelWork *pwork = Workflow::create_parallel_work([&wait_group](const ParallelWork *pwork)
                                                          {
                                                              spdlog::info("All series in this parallel have done");
                                                              wait_group.done();
                                                          });
 
-    for (auto &url : urls)
+    for (int i = 0; i < 400; i++)
     {
         WFHttpTask *task = WFTaskFactory::create_http_task(url,
                                                            k_redirect_max,
@@ -46,7 +45,8 @@ int main()
         SeriesWork *series = Workflow::create_series_work(task, nullptr);
         pwork->add_series(series);
     }
-    // start会自动创建一个串行，并将parallel作为first_task立即开始执行
+
+    spdlog::info("client start");
     pwork->start();
     wait_group.wait();
 

@@ -16,7 +16,7 @@ namespace protocol
 	{
 		if (size > body_.size())
 			body_.resize(size);
-		SPDLOG_DEBUG("Welcome to spdlog!");
+		spdlog::info("Welcome to spdlog!");
 		// void* memcpy( void* dest, const void* src, std::size_t count );
 		std::memcpy(static_cast<void *>(&*body_.begin()), buf, size);
 		return 1;

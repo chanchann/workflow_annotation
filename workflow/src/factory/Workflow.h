@@ -65,23 +65,23 @@ public:
 class SeriesWork
 {
 public:
-	void start()
+	void start()  // 启动串行
 	{
-		assert(!this->in_parallel);
+		assert(!this->in_parallel);  
 		this->first->dispatch();
 	}
 
 	/* Call dismiss() only when you don't want to start a created series.
 	 * This operation is recursive, so only call on the "root". */
-	void dismiss()
+	void dismiss()   // 放弃串行中的所有任务
 	{
 		assert(!this->in_parallel);
 		this->dismiss_recursive();
 	}
 
 public:
-	void push_back(SubTask *task);
-	void push_front(SubTask *task);
+	void push_back(SubTask *task);   // 在串行尾部添加任务
+	void push_front(SubTask *task);  // 在串行头部添加任务
 
 public:
 	void *get_context() const { return this->context; }
@@ -92,13 +92,14 @@ public:
 	 * that belongs to the series. All subsequent tasks in the series will be
 	 * destroyed immediately and recursively (ParallelWork), without callback.
 	 * But the callback of this canceled series will still be called. */
-	void cancel() { this->canceled = true; }
+	void cancel() { this->canceled = true; }    // 取消串行
 
 	/* Parallel work's callback may check the cancellation state of each
-	 * sub-series, and cancel it's super-series recursively. */
-	bool is_canceled() const { return this->canceled; }
+	 * sub-series, and cancel it's super-series recursively. */ 
+	bool is_canceled() const { return this->canceled; }   // 串行是否被取消
 
 public:
+	// 为串行设置回调函数，将参数设置为nullptr可以取消回调
 	void set_callback(series_callback_t callback)
 	{
 		this->callback = std::move(callback);
@@ -126,9 +127,9 @@ private:
 	void dismiss_recursive();
 
 private:
-	SubTask *first;
-	SubTask *last;
-	SubTask **queue;
+	SubTask *first;  // 第一个task
+	SubTask *last;   // 最后一个task
+	SubTask **queue;  
 	int queue_size;
 	int front;
 	int back;
@@ -143,11 +144,13 @@ protected:
 	friend class Workflow;
 };
 
+// 获取task所在的series
 static inline SeriesWork *series_of(const SubTask *task)
 {
 	return (SeriesWork *)task->get_pointer();
 }
 
+// *series << task;  == series->push_back(task);
 static inline SeriesWork& operator *(const SubTask& task)
 {
 	return *series_of(&task);
@@ -193,12 +196,14 @@ Workflow::start_series_work(SubTask *first, SubTask *last,
 class ParallelWork : public ParallelTask
 {
 public:
+	// 并行是一种任务，启动并行会将其放入串行，并启动串行
 	void start()
 	{
 		assert(!series_of(this));
 		Workflow::start_series_work(this, nullptr);
 	}
 
+	// 取消并行中的所有任务
 	void dismiss()
 	{
 		assert(!series_of(this));
@@ -226,6 +231,7 @@ public:
 		return *this->series_at(index);
 	}
 
+	// 获取并行中串行的个数
 	size_t size() const { return this->subtasks_nr; }
 
 public:

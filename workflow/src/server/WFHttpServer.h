@@ -28,6 +28,7 @@ using http_process_t = std::function<void (WFHttpTask *)>;
 using WFHttpServer = WFServer<protocol::HttpRequest,
 							  protocol::HttpResponse>;
 
+
 static constexpr struct WFServerParams HTTP_SERVER_PARAMS_DEFAULT =
 {
 	.max_connections		=	2000,
