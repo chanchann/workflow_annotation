@@ -4,19 +4,23 @@
 
 // 命令行中用 curl -i "http://127.0.0.1/test"
 // https://github.com/sogou/workflow/issues/89
-// more elegant way : 
+// more elegant way :
 
-int main() {
-    WFHttpServer server([&server](WFHttpTask *task) {  // 这里的写法相当于一个defer作用
-        if (strcmp(task->get_req()->get_request_uri(), "/stop") == 0) {
+int main()
+{
+    WFHttpServer server([&server](WFHttpTask *task) { // 这里的写法相当于一个defer作用
+        if (strcmp(task->get_req()->get_request_uri(), "/stop") == 0)
+        {
             static std::atomic<int> flag;
 
-            if (flag++ == 0)   // shutdown只能调用一次，因此我们用了原子变量保护
+            if (flag++ == 0) // shutdown只能调用一次，因此我们用了原子变量保护
                 server.shutdown();
 
             task->get_resp()->append_output_body("<html>server stop</html>");
             return;
-        } else if(strcmp(task->get_req()->get_request_uri(), "/test") == 0) {
+        }
+        else if (strcmp(task->get_req()->get_request_uri(), "/test") == 0)
+        {
             task->get_resp()->append_output_body("<html>server test</html>");
             return;
         }
