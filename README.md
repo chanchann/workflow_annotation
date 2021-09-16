@@ -904,9 +904,15 @@ https://github.com/sogou/workflow/issues/462
 
 74. server task 生命周期相关
 
+**任务(以及series)的生命周期在callback之后结束**
+
+任务里的数据，例如一个网络的resp，在callback之后被内存回收，如果需要保留，可以通过std::move把数据移走
+
 https://zhuanlan.zhihu.com/p/391013518
 
 75. server和client端有没有连接建立 和 连接断开的回调函数 开放给用户？ 另外，如果想做client与server端订阅推送，能支持吗
+
+todo
 
 workflow的概念是这样，你是不能直接管理一个fd的概念的，如果你对连接有保持或者断开的需求，你可以keepalive去决定
 
@@ -926,21 +932,11 @@ A : websocket本身除了http握手，其他都是tcp，包头非常小
 
 这个与网络传输和处理速度相比，基本不值一提。
 
-76. 用workflow做客户端压测工具，并发300有一批提resource temporarily.unavailable。300应该不会资源不够吧，是不是哪里用错了？
-
-用法说明：
-
-1) 创建pwork
-
-2） for 循环调用create_client_task，创建task，然后调用create_series_work(task)创建swork，pwork->add_series(swork)。
-
-3） start pwork，wait。
-
-A : 全局对每个目标ip最大连接数是200，你可以看看settings.endpoint_params.max_connections，文档里有说这个
-
-另外由于是异步，你最好每个任务回来之后再发起下一个哈，这样才能保证持续的并发压力是300来着
+76. task和callback都是一次性的
 
 77. 在workflow里面怎么统计某个消息，从请求进来，到应答出去  在系统内部的穿透延时？
+
+todo 
 
 这个workflow没有，你有需要可以自己做。workflow的定位是这些都可以外部开发的
 
@@ -948,13 +944,15 @@ srpc有个span可以统计延时，你可以看看
 
 https://github.com/sogou/srpc/issues/86
 
-可以做抽样打log检查请求耗时这样～
+可以做抽样打log检查请求耗时这样
 
 78. 关于项目内c风格代码(kernel)
 
 kernel里的代码是c风格的，一方面是性能快，另一方面是某些模块比如communicator，是有出处的（从内部存储项目演变过来）所以kernel代码是c，但并不多，外层都是c++。
 
 79. 关于特化
+
+todo 
 
 ```
 /src/server/WFHttpServer.h
@@ -972,9 +970,11 @@ inline WFHttpServer::WFServer(http_process_t proc) :
 
 client的派生要复杂得多，拿到的是个client task，但new出来是个复合任务，没法通过简单的特化来做
 
-server的行为足够简单，而client不可能通过偏特化来实现，因为派生层级不止一层
+server的行为足够简单，而client不可能通过特化来实现，因为派生层级不止一层
 
-80. 如果我不采用websocket，而是服务端通过http chunk建立一个持久连接  有新消息时就推送，是不是效果也一样？而且chunk中途部分只传输长度和内容  似乎消耗更少
+80. 如果我不采用websocket，而是服务端通过http chunk建立一个持久连接  有新消息时就推送，是不是效果也一样？而且chunk中途部分只传输长度和内容  似乎消耗更少
+
+todo 
 
 workflow框架默认的网络模式是一来一回的，也就是说推送过来之后client需要给server发东西、server才能继续发。另外断了是否重连如果这种模式，需要你自行解决。
 
@@ -996,27 +996,9 @@ https://github.com/holmes1412/workflow-major/blob/channel/tutorial/tutorial-10-u
 
 2) series callback会被调起，会拿到一个ABORTED；
 
+timer 如果开始计时，不能dissmiss了，但如果程序退出，不会卡住，会正常退出
+
 83. 这里 timer 退出的时候为什么需要加这个锁呀？
-
-```cpp
-void timer_callback(WFTimerTask *timer)
-{
-    mutex.lock();
-    if (!program_terminate)
-    {
-        WFHttpTask *task;
-        if (urls_to_fetch > 0)
-        {
-            task = WFTaskFactory::create_http_task(...);
-            series_of(timer)->push_back(task);
-        }
-
-        series_of(timer)->push_back(WFTaskFactory::create_timer_task(1, 0, timer_callback));
-    }
-    mutex.unlock();
-}
-
-```
 
 https://github.com/sogou/workflow/issues/528
 
@@ -1083,3 +1065,11 @@ code : [code](./demos/02_stop)
 https://github.com/sogou/workflow/issues/135
 
 code : [code](./demos/08_max_con)
+
+92. 上传 / 下载文件
+
+todo 
+
+自己分块，在callback里发起下一个task
+
+比较合理的一个做法就是约定好一个协议，有状态表示"未完成", 让我在callback里继续拿，比如http206之类的

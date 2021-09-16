@@ -18,9 +18,7 @@ void http_callback(WFHttpTask *task)
 
 WFHttpTask *create_http_task(const std::string &url)
 {
-    const int k_redirect_max = 4;
-    const int k_retry_max = 2;
-    return WFTaskFactory::create_http_task(url, k_redirect_max, k_retry_max, http_callback);
+    return WFTaskFactory::create_http_task(url, 4, 2, http_callback);
 }
 
 int main()
