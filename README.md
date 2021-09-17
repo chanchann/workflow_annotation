@@ -2,12 +2,6 @@
 
 workflow中文注释 / demo / 问题解答
 
-## demos
-
-1. 
-
-2. process中stop demo，见#90
-
 ## 总结一下平时水群的问题
 
 1. 自定义协议server/client ssl
@@ -32,7 +26,9 @@ pread / preadv 语义一致
 
 https://github.com/sogou/workflow/issues/40
 
-6. What is pipeline server? todo:
+6. What is pipeline server?
+
+todo:
 
 7. 为什么用callback
 
@@ -97,9 +93,7 @@ void http_callback(WFHttpTask *task)
 
 某些情况下，如果用户创建完任务又不想启动了，那么需要调用task->dismiss()直接销毁任务。
 
-需要特别强调，server的process函数不是callback，server任务的callback发生在回复完成之后，而且默认为nullptr。 ？？？
-
-todo : 此处如何理解不为callback？
+需要特别强调，server的process函数不是callback，server任务的callback发生在回复完成之后，而且默认为nullptr
 
 11. 为什么SeriesWork（串行）不是一种任务
 
@@ -127,10 +121,13 @@ todo : 此处如何理解不为callback？
 
 13. server是在process函数结束后回复请求吗
 
-todo : 写demo 理解
+不是。server是在server task所在series没有别的任务之后回复请求。
 
-不是。server是在server task所在series没有别的任务之后回复请求。如果你不向这个series里添加任何任务，就相当于process结束之后回复。注意不要在process里等待任务的完成，而应该把这个任务添加到series里。
+如果你不向这个series里添加任何任务，就相当于process结束之后回复。
 
+注意不要在process里等待任务的完成，而应该把这个任务添加到series里。
+
+[code](./demos/11_life_cycle)
 
 14. 如何让server在收到请求后等一小段时间再回复
 
@@ -148,6 +145,8 @@ void process(WFHttpTask *server_task)
 ```
 
 以上代码实现一个100毫秒延迟的http server。一切都是异步执行，等待过程没有线程被占用。
+
+[code](./demos/07_http/http_echo_defer.cc)
 
 15. 怎么知道回复成功没有
 
@@ -556,6 +555,30 @@ https://github.com/sogou/workflow/issues/196
 
 https://github.com/sogou/workflow/issues/301
 
+其实需要的就是一个不会自动结束的series，你可以向这个series里不断的增加任务，这样子这些任务就可以顺序的被执行。
+
+方法是依次push_back任务时，除了push_back当前任务，还需要再push_back一个目标值为1的counter任务。
+
+接下来，上一个counter打开，让当前任务可以被拉起。counter相当于一个塞子，用于堵住series，让series不会自动结束。
+
+其实我们series的push和pop操作都是加锁的，也就是为了用户可以实现这个功能。
+
+注意 : 在callback里面push计数器在并发访问的时候就有问题
+
+
+```cpp
+void mytask_callback(MyTask *task)
+{
+    if (/* series里没有其他任务了*/ )
+    {
+        // 如果这个地方拿到series的人直接push一个task，那就堵住了
+        WFCounterTask *counter = WFTaskFactory::create_counter_task("COUNTER_A", 1, nullptr);
+        series->push_back(counter);
+    }
+    ...
+}
+```
+
 47. BlockSeries
 
 Q : BlockSeries的实现 只管往series添加task和counter就行吧，不需要担心series的内存占用，也就是说task执行完了会自动从series里移除对吧？
@@ -880,6 +903,8 @@ parallel本身也是多个series组成，只是会等所有series结束之后你
 
 72. WFHttpServer调了stop，会不会等待所有的http task执行完成？还是说会直接终止掉所有的？
 
+todo :
+
 A : 会终止等待，任务会拿到aborted的状态
 
 Q : 有没有方法等所有的task结束再退出？
@@ -1073,3 +1098,25 @@ todo
 自己分块，在callback里发起下一个task
 
 比较合理的一个做法就是约定好一个协议，有状态表示"未完成", 让我在callback里继续拿，比如http206之类的
+
+93. WFCounterTask的一个作用是延长series使用
+
+https://github.com/sogou/workflow/issues/301
+
+series如果执行完、没有任务了就会结束，所以可以使用WFCounterTask作为内存开关，series内没有任务的时候放一个WFCounterTask
+
+然后每个想往series里放的task，放入的时候都配合打开一下开关；
+
+```
+series->push_back(my_task);
+WFTaskFactory::count_by_name("COUNTER_A");
+```
+
+就可以做到task本身被顺序执行，又能长期使用同一个series的做法了
+
+94. 条件任务与资源池
+
+https://github.com/sogou/workflow/blob/master/docs/about-conditional.md
+
+95. file server
+

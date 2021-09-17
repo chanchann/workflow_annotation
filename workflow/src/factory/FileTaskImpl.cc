@@ -353,7 +353,7 @@ WFFileSyncTask *WFTaskFactory::create_fdsync_task(int fd,
 }
 
 /* Factory functions with path name. */
-
+// 不用管理fd了。内部每次任务都打开和关闭fd。
 WFFileIOTask *WFTaskFactory::create_pread_task(const std::string& pathname,
 											   void *buf,
 											   size_t count,
