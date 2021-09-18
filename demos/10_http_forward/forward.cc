@@ -29,7 +29,7 @@ void process(WFHttpTask *server_task)
 
     // 向series里push_back一个http client任务，并且把这个http任务返回的结果写进server的回复消息
     WFHttpTask *client_task = WFTaskFactory::create_http_task(url, 3, 2, callback);
-    // *client_task->get_req() = std::move(*req);
+    *client_task->get_req() = std::move(*req);  // 把req转发给后端
     client_task->get_req()->set_header_pair("Host", "www.baidu.com");   // 少这个会403 forbidden
 
     SeriesWork *series = series_of(server_task);

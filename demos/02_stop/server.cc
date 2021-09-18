@@ -12,7 +12,7 @@ int main()
         if (strcmp(task->get_req()->get_request_uri(), "/stop") == 0)
         {
             static std::atomic<int> flag;
-
+            
             if (flag++ == 0) // shutdown只能调用一次，因此我们用了原子变量保护
                 server.shutdown();
 

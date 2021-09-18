@@ -119,6 +119,8 @@ void http_callback(WFHttpTask *task)
 
 示例：https://github.com/sogou/workflow/blob/master/tutorial/tutorial-11-graph_task.cc
 
+[code](./demos/16_graph)
+
 13. server是在process函数结束后回复请求吗
 
 不是。server是在server task所在series没有别的任务之后回复请求。
@@ -158,16 +160,17 @@ void process(WFHttpTask *server_task)
 
 可以。任何时候调用server task的noreply()方法，那么在原本回复的时机，连接直接关闭。
 
+[code](./demos/07_http/http_no_reply.cc)
+
 17. 计算任务的调度规则是什么
 
-我们发现包括WFGoTask在内的所有计算任务，在创建时都需要指定一个计算队列名，这个计算队列名可用于指导我们内部的调度策略。
+包括WFGoTask在内的所有计算任务，在创建时都需要指定一个计算队列名，这个计算队列名可用于指导我们内部的调度策略。
 
 首先，只要有空闲计算线程可用，任务将实时调起，计算队列名不起作用。
 
 当计算线程无法实时调起每个任务的时候，那么同一队列名下的任务将按FIFO的顺序被调起，而队列与队列之间则是平等对待。
 
 例如，先连续启动n个队列名为A的任务，再连续启动n个队列名为B的任务。那么无论每个任务的cpu耗时分别是多少，也无论计算线程数多少，这两个队列将近倾向于同时执行完毕。这个规律可以扩展到任意队列数量以及任意启动顺序。
-
 
 18. 为什么使用redis client时无需先建立连接
 
@@ -235,7 +238,13 @@ cursor.next操作每次返回一个chunk的起始位置指针和chunk大小，�
 
 23. 能不能在callback或process里同步等待一个任务完成
 
-不推荐这个做法，因为任何任务都可以串进任务流，无需占用线程等待。如果一定要这样做，可以用我们提供的WFFuture来实现。请不要直接使用std::future，因为我们所有通信的callback和process都在一组线程里完成，使用std::future可能会导致所有线程都陷入等待，引发整体死锁。WFFuture通过动态增加线程的方式来解决这个问题。使用WFFuture还需要注意在任务的callback里把要保留的数据（一般是resp）通过std::move移动到结果里，否则callback之后数据会随着任务一起被销毁。
+不推荐这个做法，因为任何任务都可以串进任务流，无需占用线程等待。
+
+如果一定要这样做，可以用我们提供的WFFuture来实现。请不要直接使用std::future，因为我们所有通信的callback和process都在一组线程里完成，使用std::future可能会导致所有线程都陷入等待，引发整体死锁。
+
+WFFuture通过动态增加线程的方式来解决这个问题。
+
+使用WFFuture还需要注意在任务的callback里把要保留的数据（一般是resp）通过std::move移动到结果里，否则callback之后数据会随着任务一起被销毁。
 
 24. 数据如何在task之间传递
 
@@ -729,7 +738,7 @@ B: srpc当时的改动也是类似这样的考虑，内部是个多块的固定�
 
 A : 不需要重用
 
-长连接不需要每次connect，task个连接是两码事
+长连接不需要每次connect，task和连接是两码事
 
 Q : 如果发起第二次请求，重新create_http_task么？
 
@@ -1120,3 +1129,6 @@ https://github.com/sogou/workflow/blob/master/docs/about-conditional.md
 
 95. file server
 
+96. 如何汇总一个ParallelWork的结果
+
+https://github.com/sogou/workflow/issues/140
