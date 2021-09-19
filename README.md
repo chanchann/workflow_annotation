@@ -1132,3 +1132,35 @@ https://github.com/sogou/workflow/blob/master/docs/about-conditional.md
 96. 如何汇总一个ParallelWork的结果
 
 https://github.com/sogou/workflow/issues/140
+
+[code](./demos/19_parallel/get_all_para.cc)
+
+97. HttpMessage 中append_output_body_nocopy 在什么时候释放内存？
+
+建议在callback里。如果是server task，可以设一个callback
+
+98. task之间如何顺序传递数据？
+
+https://github.com/sogou/workflow/issues/157
+
+99. 服务端的process最后回复主调方的时机怎么理解的
+
+https://github.com/sogou/workflow/issues/159
+
+server task所在的series，是以processor为首任务，server task为末尾任务的。用户向这个series里添加任务，都不会影响到末尾的server task。
+
+所以，当所有用户添加的任务都执行完成，server task被启动，而server task的启动行为就是reply，于是消息被回复。
+
+100. HttpResponse类的append_output_body()函数是多线程安全的吗
+
+https://github.com/sogou/workflow/issues/160
+
+不是的！
+
+不要在每个series或task的callback里，去append回复的resp。一定是在parellel的callback里汇总做这个事情。
+
+你参考一下parallel_wget示例里的数据转递方法。
+
+HttpMessage的所有操作都是单线程的，多线程操作没有什么意义。
+
+

@@ -19,7 +19,7 @@ void sig_handler(int signo)
 int main()
 {
     signal(SIGINT, sig_handler);
-    WFHttpServer server([&server](WFHttpTask *task) { 
+    WFHttpServer server([](WFHttpTask *task) { 
         task->set_callback([](WFHttpTask *task) {
             // todo : 如何查看连接已经断开
             // state : WFT_STATE_NOREPLY
