@@ -44,7 +44,7 @@ void create_http_post(WFHttpTask *server_task) {
 
     // https://ai.baidu.com/tech/imagerecognition/animal
 
-	std::string url = "https://aip.baidubce.com/rest/2.0/image-classify/v2/animal?access_token=24.5699b44bf48e4a034f3c1fc44068d391.2592000.1634625343.282335-24876323";
+	std::string url = "https://aip.baidubce.com/rest/2.0/image-classify/v2/animal?access_token=";
 
     spdlog::info("url : {}", url);
     WFHttpTask *post_task = WFTaskFactory::create_http_task(url, 4, 2, http_callback);
