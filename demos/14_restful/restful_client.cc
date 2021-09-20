@@ -9,23 +9,21 @@
 
 using namespace protocol;
 
-const std::string api_url = "https://aip.baidubce.com/rest/2.0/image-classify/v2/advanced_general";
-
 struct series_context
 {
     std::string url;
 };
 
-void http_callback(WFHttpTask *task)
+void http_callback(WFHttpTask *http_task)
 {
-    HttpResponse *resp = task->get_resp();
+    HttpResponse *resp = http_task->get_resp();
     spdlog::info("Http status : {}", resp->get_status_code());
 
     // response body
     const void *body;
     size_t body_len;
     resp->get_parsed_body(&body, &body_len);
-
+    free(http_task->user_data);
     spdlog::info("resp info : {}", static_cast<const char *>(body));
 }
 
@@ -40,17 +38,18 @@ void pread_callback(WFFileIOTask *pread_task)
         return;
     }
     auto ctx = static_cast<series_context *>(pread_task->user_data);
-    delete ctx;
 
     WFHttpTask *http_task = WFTaskFactory::create_http_task(ctx->url, 4, 2, http_callback);
     http_task->get_req()->set_method("POST");
     http_task->get_req()->append_output_body_nocopy(args->buf, args->count); /* nocopy */
     http_task->user_data = args->buf;                                        /* To free. */
     **pread_task << http_task;
+    delete ctx;
 }
 
 WFFileIOTask *create_file_request(const std::string &url, std::string img_path)
 {
+    spdlog::info("create file req");
     WFFileIOTask *pread_task;
     int fd = open(img_path.c_str(), O_RDONLY);
     if (fd >= 0)
@@ -61,9 +60,9 @@ WFFileIOTask *create_file_request(const std::string &url, std::string img_path)
         pread_task = WFTaskFactory::create_pread_task(fd, buf, size, 0,
                                                       pread_callback);
     }
-    series_context *ctx = new series_context; // todo : need delete
+    series_context *ctx = new series_context; 
     ctx->url = std::move(url);
-    pread_task->user_data = ctx;
+    pread_task->user_data = ctx;   
     return pread_task;
 }
 

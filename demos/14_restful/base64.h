@@ -1,9 +1,19 @@
-#ifndef BASE64_H
-#define BASE64_H
+/***************************************************************************
+ * 
+ * Copyright (c) 2014 Baidu.com, Inc. All Rights Reserved
+ * 
+ **************************************************************************/
+ 
 
-#include <string>
+#ifndef  __ABASE64_H_
+#define  __ABASE64_H_
 
-std::string base64_encode(const char* bytes_to_encode, unsigned int in_len);
-std::string base64_decode(const std::string& encoded_string);
+#include <string.h>
+#include <iostream>
 
-#endif // BASE64_H
+
+std::string base64_encode(unsigned char const* , unsigned int len);
+std::string base64_decode(std::string const& s);
+
+
+#endif  //__BASE64_H_

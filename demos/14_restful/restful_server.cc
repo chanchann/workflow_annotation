@@ -8,18 +8,16 @@
 #include <signal.h>
 #include <unordered_map>
 #include "base64.h"
+#include "encode.h"
 
 using namespace protocol;
 
-// const std::string api_url = "https://aip.baidubce.com/rest/2.0/image-classify/v2/advanced_general";
-
 struct series_context {
-    std::string imgBase64;
+    std::string params;
     WFHttpTask *server_task;
 };
 
 void http_callback(WFHttpTask *post_task) {
-    spdlog::info("http_callback");
     HttpResponse *post_resp = post_task->get_resp();
     spdlog::info("Http status : {}", post_resp->get_status_code());
 
@@ -42,26 +40,27 @@ void create_http_post(WFHttpTask *server_task) {
     req->get_parsed_body(&body, &len);
     spdlog::info("img size : {}", len);
 
-    // https://ai.baidu.com/tech/imagerecognition/animal
+    // https://ai.baidu.com/tech/imagerecognition/redwineh
+	std::string url = "https://aip.baidubce.com/rest/2.0/image-classify/v1/redwine?access_token=[token]";
 
-	std::string url = "https://aip.baidubce.com/rest/2.0/image-classify/v2/animal?access_token=";
-
-    spdlog::info("url : {}", url);
     WFHttpTask *post_task = WFTaskFactory::create_http_task(url, 4, 2, http_callback);
     
-    std::string imgBase64 = base64_encode(static_cast<const char *>(body), len);
-    series_context* ctx = new series_context; 
-    ctx->imgBase64 = std::move(imgBase64);
+    series_context* ctx = new series_context;
+
+    std::string data = "image=" + url_encode(base64_encode(static_cast<unsigned char const*>(body), len));
+
+    ctx->params = std::move(data);
     ctx->server_task = server_task;
 
     series_of(server_task)->set_context(ctx);
+    HttpRequest *post_req = post_task->get_req();
 
-    post_task->get_req()->set_method("POST");
-    post_task->get_req()->add_header_pair("Content-Type", "application/x-www-form-urlencoded");
-    post_task->get_req()->append_output_body_nocopy(
-                                static_cast<const void *>(ctx->imgBase64.c_str()),
-                                ctx->imgBase64.size());
-
+    post_req->set_method("POST");
+    post_req->add_header_pair("Host", "aip.baidubce.com");
+    post_req->add_header_pair("Content-Type", "application/x-www-form-urlencoded");
+    post_req->append_output_body_nocopy(
+                                static_cast<const void *>(ctx->params.c_str()),
+                                ctx->params.size());
     **server_task << post_task;
 }
 
@@ -70,6 +69,7 @@ void process(WFHttpTask *server_task) {
     {
         create_http_post(server_task);
         server_task->set_callback([](WFHttpTask *server_task) {
+            spdlog::info("delete ctx");
             delete static_cast<series_context *>(series_of(server_task)->get_context());
         });
         return;
