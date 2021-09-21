@@ -105,6 +105,7 @@ using dynamic_create_t = std::function<SubTask *(WFDynamicTask *)>;
 class WFTaskFactory
 {
 // 创建协议相关的应用层task
+// 其实现在xxxTaskImpl.cc中
 public:
 	static WFHttpTask *create_http_task(const std::string& url,
 										int redirect_max,

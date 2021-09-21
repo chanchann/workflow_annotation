@@ -424,6 +424,8 @@ also :
 
 5) 再看网络相关的task，建议直接入手WFComplexClientTask，http task或redis task只是协议不同，本质都是一个WFComplexClientTask，了解这个，就基本了解网络相关的任务了
 
+https://zhuanlan.zhihu.com/p/359104170
+
 31. 关于dissmiss
 
 所有的task如果create完，不用的话就dismiss，不然会泄漏(!!不要delete，不是亲手new的，就不要delete)

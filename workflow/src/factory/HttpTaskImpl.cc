@@ -48,6 +48,7 @@ public:
 	{
 		HttpRequest *client_req = this->get_req();
 
+		// 默认Get / HTTP/1.1
 		client_req->set_method(HttpMethodGet);
 		client_req->set_http_version("HTTP/1.1");
 	}
@@ -66,7 +67,7 @@ protected:
 	void set_empty_request();
 
 private:
-	int redirect_max_;
+	int redirect_max_;  
 	int redirect_count_;
 };
 
