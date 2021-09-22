@@ -283,6 +283,7 @@ Communicator::request(CommSession *session, CommTarget *target)这个接口就�
 class Communicator
 {
 public:
+	// 在init中create_epoll
 	int init(size_t poller_threads, size_t handler_threads);
 	void deinit();
 

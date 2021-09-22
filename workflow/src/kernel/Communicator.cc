@@ -1310,6 +1310,12 @@ int Communicator::create_handler_threads(size_t handler_threads)
 	return -1;
 }
 
+/**
+ * @brief 创建msgqueue和mpoller
+ * 
+ * @param poller_threads 
+ * @return int 0 : 成功 -1 : 失败
+ */
 int Communicator::create_poller(size_t poller_threads)
 {
 	struct poller_params params = {
@@ -1321,12 +1327,12 @@ int Communicator::create_poller(size_t poller_threads)
 	};
 
 	this->queue = msgqueue_create(4096, sizeof (struct poller_result));
-	if (this->queue)
+	if (this->queue)  // queue若成功创建
 	{
 		this->mpoller = mpoller_create(&params, poller_threads);
-		if (this->mpoller)
+		if (this->mpoller)  // mpoller若成功创建
 		{
-			if (mpoller_start(this->mpoller) >= 0)
+			if (mpoller_start(this->mpoller) >= 0)  // 成功启动
 				return 0;
 
 			mpoller_destroy(this->mpoller);
@@ -1338,11 +1344,20 @@ int Communicator::create_poller(size_t poller_threads)
 	return -1;
 }
 
+
+/**
+ * @brief 初始化
+ * 
+ * @param poller_threads 
+ * @param handler_threads 
+ * @return int - 0 ：成功， -1 失败(查看errno)
+ * 
+ */
 int Communicator::init(size_t poller_threads, size_t handler_threads)
 {
 	if (poller_threads == 0)
 	{
-		errno = EINVAL;
+		errno = EINVAL; // EINVAL表示无效的参数，即为invalid argument 
 		return -1;
 	}
 
@@ -1351,9 +1366,9 @@ int Communicator::init(size_t poller_threads, size_t handler_threads)
 		if (this->create_handler_threads(handler_threads) >= 0)
 		{
 			this->stop_flag = 0;
-			return 0;
+			return 0;   // init成功
 		}
-
+		// 没create成功则
 		mpoller_stop(this->mpoller);
 		mpoller_destroy(this->mpoller);
 		msgqueue_destroy(this->queue);
