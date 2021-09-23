@@ -25,6 +25,11 @@
 
 typedef struct __mpoller mpoller_t;
 
+/**
+ * @brief mpoller 主要的功能函数
+ * 
+ */
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -42,7 +47,7 @@ void mpoller_destroy(mpoller_t *mpoller);
 struct __mpoller
 {
 	unsigned int nthreads;
-	poller_t *poller[1];
+	poller_t *poller[1];  // todo : 这里为何用个[1]
 };
 
 static inline int mpoller_add(const struct poller_data *data, int timeout,

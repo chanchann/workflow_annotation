@@ -21,6 +21,13 @@
 #include "poller.h"
 #include "mpoller.h"
 
+/**
+ * @brief 挨个创建/初始poller
+ * 
+ * @param params 
+ * @param mpoller 
+ * @return int 
+ */
 static int __mpoller_create(const struct poller_params *params,
 							mpoller_t *mpoller)
 {
@@ -28,16 +35,17 @@ static int __mpoller_create(const struct poller_params *params,
 
 	for (i = 0; i < mpoller->nthreads; i++)
 	{
+		// 挨着挨着初始化每一个poller
 		mpoller->poller[i] = poller_create(params);
-		if (!mpoller->poller[i])
+		if (!mpoller->poller[i])  // 当有个不成功就break出去
 			break;
 	}
 
 	if (i == mpoller->nthreads)
-		return 0;
+		return 0;  // 都成功则返回0
 
 	while (i > 0)
-		poller_destroy(mpoller->poller[--i]);
+		poller_destroy(mpoller->poller[--i]);  // 如果不成功，则挨个destroy掉
 
 	return -1;
 }
@@ -48,17 +56,27 @@ mpoller_t *mpoller_create(const struct poller_params *params, size_t nthreads)
 	size_t size;
 
 	if (nthreads == 0)
-		nthreads = 1;
+		nthreads = 1;   // 默认至少有一个poller线程
 
-	size = offsetof(mpoller_t, poller) + nthreads * sizeof (void *);
-	mpoller = (mpoller_t *)malloc(size);
-	if (mpoller)
+	// offsetof : offsetof - offset of a structure member
+	// https://man7.org/linux/man-pages/man3/offsetof.3.html
+	// 这里的poller是mpoller_t的第二个成员变量
+
+	// Becareful void* here 
+	// void * can hold any data pointer, but not function pointers.
+	// https://stackoverflow.com/questions/6908686/c-size-of-void
+	// 此处  offsetof(mpoller_t, poller) : 第一个元素(nthreads) 大小 (一般member var 考虑 内存对齐问题)
+	// 第二个部分是nthreads 个
+	// todo: 为何使用 void *
+	size = offsetof(mpoller_t, poller) + nthreads * sizeof (void *);  
+	mpoller = (mpoller_t *)malloc(size);    
+	if (mpoller)  // 如果malloc成功
 	{
-		mpoller->nthreads = (unsigned int)nthreads;
+		mpoller->nthreads = (unsigned int)nthreads;   // 设置第一个元素
 		if (__mpoller_create(params, mpoller) >= 0)
-			return mpoller;
+			return mpoller;   // create成功
 
-		free(mpoller);
+		free(mpoller);  // create失败则释放
 	}
 
 	return NULL;

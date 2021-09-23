@@ -48,7 +48,7 @@
 
 struct __poller_node
 {
-	int state;
+	int state;    
 	int error;
 	struct poller_data data;
 #pragma pack(1)
@@ -90,6 +90,7 @@ struct __poller
 
 #ifdef __linux__
 
+// 之所以要封装，是因为不同平台，保持同样的接口
 static inline int __poller_create_pfd()
 {
 	return epoll_create(1);
@@ -1053,24 +1054,32 @@ static int __poller_create_timer(poller_t *poller)
 	return -1;
 }
 
+/**
+ * @brief 
+ * 
+ * @param params 
+ * @return poller_t* 
+ */
 poller_t *poller_create(const struct poller_params *params)
 {
 	poller_t *poller = (poller_t *)malloc(sizeof (poller_t));
 	size_t n;
 	int ret;
 
-	if (!poller)
+	if (!poller)  // malloc 失败
 		return NULL;
 
 	n = params->max_open_files;
 	if (n == 0)
-		n = POLLER_NODES_MAX;
+		n = POLLER_NODES_MAX;  // 如果取的params默认为0， 则设置为max nodes(65536)
 
+    // calloc() gives you a zero-initialized buffer, while malloc() leaves the memory uninitialized.
+    // https://stackoverflow.com/questions/1538420/difference-between-malloc-and-calloc
 	poller->nodes = (struct __poller_node **)calloc(n, sizeof (void *));
 	if (poller->nodes)
 	{
-		poller->pfd = __poller_create_pfd();
-		if (poller->pfd >= 0)
+		poller->pfd = __poller_create_pfd();   // !!!这里终于到底了了，去调用了epoll_create(1);
+		if (poller->pfd >= 0)  
 		{
 			if (__poller_create_timer(poller) >= 0)
 			{
@@ -1099,11 +1108,10 @@ poller_t *poller_create(const struct poller_params *params)
 
 			close(poller->pfd);
 		}
-
+		// epoll_create 失败
 		free(poller->nodes);
 	}
-
-	free(poller);
+	free(poller); // if poller->nodes calloc 失败
 	return NULL;
 }
 

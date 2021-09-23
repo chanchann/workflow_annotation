@@ -110,7 +110,7 @@ poller_create
                 └── __WFKafkaTaskFactory::create_kafka_task   [vim src/factory/KafkaTaskImpl.cc +617]
 ```
 
-可见在 Communicator::init 中创建
+可见在 Communicator::init 中创建, 这里的init主要做了两件事，一件是create_poller，一件是create_handler_threads。
 
 ```cpp
 int Communicator::init(size_t poller_threads, size_t handler_threads)
@@ -211,7 +211,155 @@ mpoller_t *mpoller_create(const struct poller_params *params, size_t nthreads)
 }
 ```
 
+其中 mpoller_t 就是 __mpoller
 
+```cpp
+/src/kernel/poller.h
+typedef struct __mpoller mpoller_t;
+
+struct __mpoller
+{
+	unsigned int nthreads;
+	poller_t *poller[1];
+};
+```
+
+而这里的poller_t
+
+```cpp
+/src/kernel/poller.c
+
+typedef struct __poller poller_t;
+
+struct __poller
+{
+	size_t max_open_files;
+	poller_message_t *(*create_message)(void *);
+	int (*partial_written)(size_t, void *);
+	void (*cb)(struct poller_result *, void *);
+	void *ctx;
+
+	pthread_t tid;
+	int pfd;
+	int timerfd;
+	int pipe_rd;
+	int pipe_wr;
+	int stopped;
+	struct rb_root timeo_tree;
+	struct rb_node *tree_first;
+	struct list_head timeo_list;
+	struct list_head no_timeo_list;
+	struct __poller_node **nodes;
+	pthread_mutex_t mutex;
+	char buf[POLLER_BUFSIZE];
+};
+```
+
+我们在其中
+
+```cpp
+static int __mpoller_create(const struct poller_params *params,
+							mpoller_t *mpoller)
+{
+	unsigned int i;
+
+	for (i = 0; i < mpoller->nthreads; i++)
+	{
+		mpoller->poller[i] = poller_create(params);
+		if (!mpoller->poller[i])
+			break;
+	}
+
+	if (i == mpoller->nthreads)
+		return 0;
+
+	while (i > 0)
+		poller_destroy(mpoller->poller[--i]);
+
+	return -1;
+}
+```
+
+```cpp
+/src/kernel/poller.c
+
+poller_t *poller_create(const struct poller_params *params)
+{
+	poller_t *poller = (poller_t *)malloc(sizeof (poller_t));
+	size_t n;
+	int ret;
+
+	if (!poller)
+		return NULL;
+
+	n = params->max_open_files;
+	if (n == 0)
+		n = POLLER_NODES_MAX;
+
+	poller->nodes = (struct __poller_node **)calloc(n, sizeof (void *));
+	if (poller->nodes)
+	{
+		poller->pfd = __poller_create_pfd();
+		if (poller->pfd >= 0)
+		{
+			if (__poller_create_timer(poller) >= 0)
+			{
+				ret = pthread_mutex_init(&poller->mutex, NULL);
+				if (ret == 0)
+				{
+					poller->max_open_files = n;
+					poller->create_message = params->create_message;
+					poller->partial_written = params->partial_written;
+					poller->cb = params->callback;
+					poller->ctx = params->context;
+
+					poller->timeo_tree.rb_node = NULL;
+					poller->tree_first = NULL;
+					INIT_LIST_HEAD(&poller->timeo_list);
+					INIT_LIST_HEAD(&poller->no_timeo_list);
+					poller->nodes[poller->timerfd] = POLLER_NODE_ERROR;
+					poller->nodes[poller->pfd] = POLLER_NODE_ERROR;
+					poller->stopped = 1;
+					return poller;
+				}
+
+				errno = ret;
+				close(poller->timerfd);
+			}
+
+			close(poller->pfd);
+		}
+
+		free(poller->nodes);
+	}
+
+	free(poller);
+	return NULL;
+}
+```
+
+```cpp
+/src/kernel/poller.c
+
+struct __poller_node
+{
+	int state;
+	int error;
+	struct poller_data data;
+#pragma pack(1)   
+	union
+	{
+		struct list_head list;
+		struct rb_node rb;
+	};
+#pragma pack()
+	char in_rbtree;
+	char removed;
+	int event;
+	struct timespec timeout;
+	struct __poller_node *res;
+};
+```
 
 ## msgqueue
 
