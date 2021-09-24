@@ -1472,6 +1472,7 @@ struct CommConnEntry *Communicator::get_idle_conn(CommTarget *target)
 	return NULL;
 }
 
+// 优先复用connection
 int Communicator::request_idle_conn(CommSession *session, CommTarget *target)
 {
 	struct CommConnEntry *entry;

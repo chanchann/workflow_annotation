@@ -76,17 +76,24 @@ CommMessageOut *ComplexHttpTask::message_out()
 	auto *req = this->get_req();
 	bool is_alive;
 	HttpHeaderCursor req_cursor(req);
-	struct HttpMessageHeader header;
+	struct HttpMessageHeader header;  
 	bool chunked = false;
 
+	// "Transfer-Encoding" : ../../other/01_transfer_encoding.md
 	header.name = "Transfer-Encoding";
 	header.name_len = 17;
+	// 如果查找到"Transfer-Encoding"
 	if (req_cursor.find(&header) && header.value_len > 0)
 	{
+		// transfer-encoding的可选值有：chunked,identity，
+		// 前者指把要发送传输的数据切割成一系列的块数据传输
+		// 后者指传输时不做任何处理，自身的本质数据形式传输
+		// 此处是看是否为chunked
 		chunked = !(header.value_len == 8 &&
 			strncasecmp((const char *)header.value, "identity", 8) == 0);
 	}
 
+	// 如果不是chunked
 	if (!chunked)
 	{
 		size_t body_size = req->get_output_body_size();
@@ -96,27 +103,31 @@ CommMessageOut *ComplexHttpTask::message_out()
 		{
 			header.name = "Content-Length";
 			header.name_len = 14;
-			req_cursor.rewind();
+			req_cursor.rewind();  // 返回最前
+			// 如果没查找到Content-Length header
 			if (!req_cursor.find(&header))
 			{
 				char buf[32];
 				header.value = buf;
 				header.value_len = sprintf(buf, "%zu", body_size);
-				req->add_header(&header);
+				req->add_header(&header);   // 帮用户拼凑这个字段
 			}
 		}
 	}
 
 	header.name = "Connection";
 	header.name_len = 10;
-	req_cursor.rewind();
+	req_cursor.rewind();   // cursor再次倒退到最前面
+	// 查找到Connection字段
 	if (req_cursor.find(&header))
 	{
+		// 看看这个字段是不是Keep-Alive
 		is_alive = (header.value_len == 10 &&
 				strncasecmp((const char *)header.value, "Keep-Alive", 10) == 0);
 	}
 	else if (this->keep_alive_timeo != 0)
 	{
+		// 如果没找到这个字段，但是timeout不为0，那么也是Keep-Alive，不断掉，并帮用户增加上这个字段
 		is_alive = true;
 		header.value = "Keep-Alive";
 		header.value_len = 10;
@@ -124,49 +135,57 @@ CommMessageOut *ComplexHttpTask::message_out()
 	}
 	else
 	{
-		is_alive = false;
+		// 否则的话那么就是短连接
+		is_alive = false; 
 		header.value = "close";
 		header.value_len = 5;
 		req->add_header(&header);
 	}
 
-	if (!is_alive)
-		this->keep_alive_timeo = 0;
+	if (!is_alive)  
+		this->keep_alive_timeo = 0;  // 短连接，设置time_out 为0
 	else
 	{
 		//req---Connection: Keep-Alive
 		//req---Keep-Alive: timeout=0,max=100
-
+		// timeout: An integer representing the time in seconds that the host will allow an idle connection to remain open before it is closed
+		// max: indicating the maximum number of requests that can be sent on this connection before closing it
+		// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Keep-Alive
 		header.name = "Keep-Alive";
 		header.name_len = 10;
-		req_cursor.rewind();
+		req_cursor.rewind();  // cursor 再次倒退
+		// 找Keep-Alive
 		if (req_cursor.find(&header))
 		{
 			std::string keep_alive((const char *)header.value, header.value_len);
+			// value切割开 timeout, max
 			std::vector<std::string> params = StringUtil::split(keep_alive, ',');
-
+			
 			for (const auto& kv : params)
 			{
+				// 再将其 timeout=0 格式 切开
 				std::vector<std::string> arr = StringUtil::split(kv, '=');
-				if (arr.size() < 2)
+				if (arr.size() < 2)  // 没有就设置为0
 					arr.emplace_back("0");
 
 				std::string key = StringUtil::strip(arr[0]);
 				std::string val = StringUtil::strip(arr[1]);
 				if (strcasecmp(key.c_str(), "timeout") == 0)
 				{
+					// 如果是timeout的话，rfc要求单位是s，所以要 * 1000
 					this->keep_alive_timeo = 1000 * atoi(val.c_str());
 					break;
 				}
 			}
 		}
-
+		// 最大timeout是HTTP_KEEPALIVE_MAX
 		if ((unsigned int)this->keep_alive_timeo > HTTP_KEEPALIVE_MAX)
 			this->keep_alive_timeo = HTTP_KEEPALIVE_MAX;
 		//if (this->keep_alive_timeo < 0 || this->keep_alive_timeo > HTTP_KEEPALIVE_MAX)
 	}
 
 	//req->set_header_pair("Accept", "*/*");
+	// 然后发送出去
 	return this->WFClientTask::message_out();
 }
 

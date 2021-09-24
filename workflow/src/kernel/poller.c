@@ -134,11 +134,12 @@ static inline int __poller_create_timerfd()
 static inline int __poller_add_timerfd(int fd, poller_t *poller)
 {
 	struct epoll_event ev = {
-		.events		=	EPOLLIN | EPOLLET,
+		.events		=	EPOLLIN | EPOLLET,  // TODO : 为何为ET?
 		.data		=	{
 			.ptr	=	NULL
 		}
 	};
+	// epoll 上添加上timerfd
 	return epoll_ctl(poller->pfd, EPOLL_CTL_ADD, fd, &ev);
 }
 
@@ -1036,18 +1037,24 @@ static int __poller_open_pipe(poller_t *poller)
 	return -1;
 }
 
+/**
+ * @brief 给poller添加timerfd
+ * 
+ * @param poller 
+ * @return int 0 成功， -1 失败
+ */
 static int __poller_create_timer(poller_t *poller)
 {
-	int timerfd = __poller_create_timerfd();
+	int timerfd = __poller_create_timerfd();  // !!! 到底了， timerfd_create
 
-	if (timerfd >= 0)
+	if (timerfd >= 0) 
 	{
 		if (__poller_add_timerfd(timerfd, poller) >= 0)
 		{
 			poller->timerfd = timerfd;
 			return 0;
 		}
-
+		// __poller_add_timerfd失败
 		close(timerfd);
 	}
 
@@ -1081,11 +1088,14 @@ poller_t *poller_create(const struct poller_params *params)
 		poller->pfd = __poller_create_pfd();   // !!!这里终于到底了了，去调用了epoll_create(1);
 		if (poller->pfd >= 0)  
 		{
-			if (__poller_create_timer(poller) >= 0)
+			if (__poller_create_timer(poller) >= 0)   // 给epoll添加timerfd
 			{
+				// The pthread_mutex_init() function shall initialize the mutex referenced by mutex with attributes specified by attr.
+				// https://linux.die.net/man/3/pthread_mutex_init
 				ret = pthread_mutex_init(&poller->mutex, NULL);
-				if (ret == 0)
+				if (ret == 0)  // pthread_mutex_init successfully
 				{
+					// 通过params设置poller的各个参数
 					poller->max_open_files = n;
 					poller->create_message = params->create_message;
 					poller->partial_written = params->partial_written;
@@ -1103,7 +1113,7 @@ poller_t *poller_create(const struct poller_params *params)
 				}
 
 				errno = ret;
-				close(poller->timerfd);
+				close(poller->timerfd);  // __poller_create_timer 失败
 			}
 
 			close(poller->pfd);

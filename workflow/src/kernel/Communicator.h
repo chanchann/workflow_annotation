@@ -278,7 +278,7 @@ public:
 #endif
 
 /*
-Communicator::request(CommSession *session, CommTarget *target)这个接口就可以实现一个异步的网络请求了
+
 */
 class Communicator
 {
@@ -287,6 +287,7 @@ public:
 	int init(size_t poller_threads, size_t handler_threads);
 	void deinit();
 
+	// Communicator::request(CommSession *session, CommTarget *target)这个接口就可以实现一个异步的网络请求了
 	int request(CommSession *session, CommTarget *target);
 	int reply(CommSession *session);
 

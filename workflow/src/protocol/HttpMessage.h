@@ -34,6 +34,10 @@
 namespace protocol
 {
 
+/**
+ * @brief http header 是 kv : {name : value}
+ * 
+ */
 struct HttpMessageHeader
 {
 	const void *name;

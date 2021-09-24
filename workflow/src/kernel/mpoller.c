@@ -36,7 +36,7 @@ static int __mpoller_create(const struct poller_params *params,
 	for (i = 0; i < mpoller->nthreads; i++)
 	{
 		// 挨着挨着初始化每一个poller
-		mpoller->poller[i] = poller_create(params);
+		mpoller->poller[i] = poller_create(params);  
 		if (!mpoller->poller[i])  // 当有个不成功就break出去
 			break;
 	}
