@@ -137,7 +137,7 @@ CommMessageOut *ComplexHttpTask::message_out()
 
 归根到底，之前的旧代码中，没有利用好http_parser中的一些记录信息, 比如说是否是chunked，是否有content_length_header等等，而是反复的rewind去find这些字段。
 
-所以由之前的4次find+3次rewind ---> 编程了一次find，效率自然就增加了
+所以由之前的4次find+3次rewind ---> 变成了一次find，效率自然就增加了
 
 ```cpp
 
@@ -169,3 +169,7 @@ typedef struct __http_parser
 	char is_resp;
 } http_parser_t;
 ```
+
+## 性能测试 
+
+ing
