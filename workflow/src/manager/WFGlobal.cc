@@ -564,30 +564,42 @@ public:
 static void __split_merge_str(const char *p, bool is_nameserver,
 							  std::string& result)
 {
-	const char *start;
+	// 格式 : 
+	/*
+	nameserver 10.0.12.210
+	search foobar.com foo.com
+	options ndots:5
+	*/
 
-	if (!isspace(*p))
+	const char *start;
+	
+	if (!isspace(*p)) // 如果从开始不是空格，则格式不正确，直接返回
 		return;
 
 	while (1)
 	{
 		while (isspace(*p))
 			p++;
-
-		start = p;
+		// 从第一个不为空格的地方开始
+		start = p; // 此处start记录下p的位置，然后去移动p
+		// ; 或者 # 开头的为注释
+		// 如果p不在 '\0' 结束处 且 不是 # 且 不是 ; 且不为空格，则往后移动
 		while (*p && *p != '#' && *p != ';' && !isspace(*p))
 			p++;
 
-		if (start == p)
+		if (start == p)  // 如果都没动，这一排后面是注释或者后面没有东西，就直接break了
 			break;
-
+		// 第一次传入的url是一个空的str，拿进来拼凑出url
+		// 第一个之后都用 ',' 分割开
 		if (!result.empty())
 			result.push_back(',');
-
-		std::string str(start, p);
+		
+		std::string str(start, p); 
 		if (is_nameserver)
 		{
 			struct in6_addr buf;
+			// 如果是nameserver字段的话，那么这里读出的str则是 ip 地址
+			// 这里如果是ipv6则[str]格式
 			if (inet_pton(AF_INET6, str.c_str(), &buf) > 0)
 				str = "[" + str + "]";
 		}
@@ -599,7 +611,9 @@ static void __split_merge_str(const char *p, bool is_nameserver,
 static inline const char *__try_options(const char *p, const char *q,
 										const char *r)
 {
-	size_t len = strlen(r);
+	size_t len = strlen(r);  // 要查找的字段长度
+	// 首先在一个字符串中找这个字段，要大于他才行， 然后看这么长是否有是这个字段
+	// 如果是则返回末尾的这个位置，否则NULL
 	if ((size_t)(q - p) >= len && strncmp(p, r, len) == 0)
 		return p + len;
 	return NULL;
@@ -608,6 +622,7 @@ static inline const char *__try_options(const char *p, const char *q,
 static void __set_options(const char *p,
 						  int *ndots, int *attempts, bool *rotate)
 {
+	// 和__split_merge_str 逻辑一样的找字段
 	const char *start;
 	const char *opt;
 
@@ -625,16 +640,28 @@ static void __set_options(const char *p,
 
 		if (start == p)
 			break;
-
+		// 主要找以下几个字段
 		if ((opt = __try_options(start, p, "ndots:")) != NULL)
 			*ndots = atoi(opt);
 		else if ((opt = __try_options(start, p, "attempts:")) != NULL)
 			*attempts = atoi(opt);
 		else if ((opt = __try_options(start, p, "rotate")) != NULL)
-			*rotate = true;
+			*rotate = true;  // rotate 出现了就是true，没有其他值
+			// 格式 : options rotate
 	}
 }
 
+/**
+ * @brief 这个函数，传入path(resolve.conf), 然后读出里面的url， search_list，ndots， attempts，rotate出来
+ * 
+ * @param [in] path 
+ * @param [out] url 
+ * @param [out] search_list 
+ * @param [out] ndots 
+ * @param [out] attempts 
+ * @param [out] rotate 
+ * @return int 0 成功，-1 失败
+ */
 static int __parse_resolv_conf(const char *path,
 							   std::string& url, std::string& search_list,
 							   int *ndots, int *attempts, bool *rotate)
@@ -643,18 +670,24 @@ static int __parse_resolv_conf(const char *path,
 	char *line = NULL;
 	FILE *fp;
 	int ret;
-
+	// 打开resolve.conf文件
 	fp = fopen(path, "r");
 	if (!fp)
 		return -1;
-
+	// 然后一排一排的读取出来
 	while ((ret = getline(&line, &bufsize, fp)) > 0)
 	{
+		// 然后判断是哪些字段
+		// nameserver x.x.x.x该选项用来制定DNS服务器的，可以配置多个nameserver指定多个DNS。
 		if (strncmp(line, "nameserver", 10) == 0)
 			__split_merge_str(line + 10, true, url);
 		else if (strncmp(line, "search", 6) == 0)
+			// search 111.com 222.com该选项可以用来指定多个域名，中间用空格或tab键隔开。
+			// 原来当访问的域名不能被DNS解析时，resolver会将该域名加上search指定的参数，重新请求DNS，
+			// 直到被正确解析或试完search指定的列表为止。
 			__split_merge_str(line + 6, false, search_list);
 		else if (strncmp(line, "options", 7) == 0)
+			// 接下来就是这只options选项了
 			__set_options(line + 7, ndots, attempts, rotate);
 	}
 
@@ -679,25 +712,32 @@ public:
 private:
 	__DnsClientManager()
 	{
+		// default "/etc/resolv.conf"
 		const char *path = WFGlobal::get_global_settings()->resolv_conf_path;
 
 		client = NULL;
+		// 如果有resolv.conf路径
 		if (path && path[0])
 		{
-			int ndots = 1;
-			int attempts = 2;
-			bool rotate = false;
-			std::string url;
+			// man 5 resolv.conf
+			int ndots = 1;  // 设置调用res_query()解析域名时域名至少包含的点的数量
+			int attempts = 2;  // 设置resolver向DNS服务器发起域名解析的请求次数。默认值RES_DFLRETRY=2，参见<resolv.h>
+			bool rotate = false;  // 在_res.options中设置RES_ROTATE，采用轮询方式访问nameserver，实现负载均衡
+			std::string url; 
+			// 来当访问的域名不能被DNS解析时，resolver会将该域名加上search指定的参数，重新请求DNS
+			// 直到被正确解析或试完search指定的列表为止。
 			std::string search;
-
+			
 			__parse_resolv_conf(path, url, search, &ndots, &attempts, &rotate);
-			if (url.size() == 0)
+			if (url.size() == 0)  // 如果没有的话，默认为google的 8.8.8.8
 				url = "8.8.8.8";
 
-			client = new WFDnsClient;
-			if (client->init(url, search, ndots, attempts, rotate) >= 0)
-				return;
+			client = new WFDnsClient;  
 
+			if (client->init(url, search, ndots, attempts, rotate) >= 0)
+				return;  // 成功
+			
+			// 失败则把client复原
 			delete client;
 			client = NULL;
 		}
