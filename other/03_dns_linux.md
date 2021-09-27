@@ -21,6 +21,9 @@ http://www.ttlsa.com/linux/resolv-conf-desc/
 https://zhuanlan.zhihu.com/p/78606595
 
 
+## DNS常用记录类型和服务发现（DNS解析）
+
+https://blog.csdn.net/u012206617/article/details/106577713
 
 
 

@@ -697,6 +697,7 @@ static int __dns_parser_parse_question(dns_parser_t *parser)
 	return 0;
 }
 
+// init初始化就是__dns_parser清零操作
 void dns_parser_init(dns_parser_t *parser)
 {
 	parser->msgbuf = NULL;
@@ -910,6 +911,11 @@ int dns_record_cursor_find_cname(const char *name,
 	return 1;
 }
 
+
+/**
+ * @brief 以下都是转字符串操作
+ * 
+ */
 const char *dns_type2str(int type)
 {
 	switch (type)
@@ -996,6 +1002,7 @@ const char *dns_opcode2str(int opcode)
 		return "Unknown";
 	}
 }
+
 
 const char *dns_rcode2str(int rcode)
 {
