@@ -16,6 +16,14 @@ man 3 resolver
 
 http://www.ttlsa.com/linux/resolv-conf-desc/
 
+## 简单的dns协议解析
 
-## 
+https://zhuanlan.zhihu.com/p/78606595
+
+
+
+
+
+
+
 

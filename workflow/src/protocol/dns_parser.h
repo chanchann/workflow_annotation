@@ -26,7 +26,8 @@
 enum
 {
 	// 这是DNS协议中定义的各种type
-	https://en.wikipedia.org/wiki/List_of_DNS_record_types
+	// https://en.wikipedia.org/wiki/List_of_DNS_record_types
+
 	DNS_TYPE_A = 1,
 	DNS_TYPE_NS,
 	DNS_TYPE_MD,
@@ -55,7 +56,7 @@ enum
 
 enum
 {
-	DNS_CLASS_IN = 1,
+	DNS_CLASS_IN = 1,  // internet 表示网络，最为常用
 	DNS_CLASS_CS,
 	DNS_CLASS_CH,
 	DNS_CLASS_HS,
@@ -146,6 +147,24 @@ struct dns_header
 	uint16_t arcount;
 };
 
+
+/**
+ * @brief 提问部分
+ * 
+ * 请求包需要至少1个提问条目，回应包也会返回提问条件
+ * 
+ * qname : QNAME 域名是由点和多个标签组成的，比如http://www.google.com一共有三个标签www, google, com：
+ * QNAME正常的存储方式是：标签1长度(1字节)+标签1内容+标签2长度(1字节)+标签2内容+...这样的，最后以\0结尾。
+ * e.g 3w6google3com0
+ * 还有一种压缩的存储
+ * 
+ * qtype : 提问的类型
+ * 有两个是我们关心的：
+ * A 1 (DNS_TYPE_A) IPv4地址 
+ * AAAA 28 (DNS_TYPE_AAAA) IPv6地址
+ * 
+ * QCLASS 提问类别，1表示网络(DNS_CLASS_IN)
+ */
 struct dns_question
 {
 	char *qname;
@@ -178,6 +197,16 @@ struct dns_record_mx
 	char *exchange;
 };
 
+/**
+ * @brief 回答部分
+ * 
+ * name 和上面提问的QNAME一样
+ * type 和上面提问的QTYPE一样
+ * rclass 和上面的QCLASS一样
+ * ttl 生命周期，DNS有缓存机制，这个表示缓存的时间(S)。
+ * rdlength 资源长度(即RDATA长度)
+ * rdata 资源内容，A为4个字节的地址，AAAA为16个字节的地址，其他的略过
+ */
 struct dns_record
 {
 	char *name;

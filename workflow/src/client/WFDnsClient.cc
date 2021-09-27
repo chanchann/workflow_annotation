@@ -314,6 +314,7 @@ WFDnsTask *WFDnsClient::create_dns_task(const std::string& name,
 	req->set_rd(1);  // Recursion Desired, indicates if the client means a recursive query	
 
 	ComplexTask *ctask = static_cast<ComplexTask *>(task);
+	// todo : 重点梳理ctx
 	*ctask->get_mutable_ctx() = std::bind(__callback_internal,
 										  std::placeholders::_1, 
 										  *(DnsParams *)params, status); // todo : 思考向这里params不是应该std::ref进去吗

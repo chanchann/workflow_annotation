@@ -30,6 +30,19 @@ using namespace protocol;
 class ComplexDnsTask : public WFComplexClientTask<DnsRequest, DnsResponse,
 							  std::function<void (WFDnsTask *)>>
 {
+
+	// /* Structure to contain information about address of a service provider.  */
+	// struct addrinfo
+	// {
+	// int ai_flags;			/* Input flags.  */
+	// int ai_family;		/* Protocol family for socket.  */
+	// int ai_socktype;		/* Socket type.  */
+	// int ai_protocol;		/* Protocol for socket.  */
+	// socklen_t ai_addrlen;		/* Length of socket address.  */
+	// struct sockaddr *ai_addr;	/* Socket address for socket.  */
+	// char *ai_canonname;		/* Canonical name for service location.  */
+	// struct addrinfo *ai_next;	/* Pointer to next in list.  */
+	// };
 	static struct addrinfo hints;
 
 public:
@@ -37,6 +50,7 @@ public:
 		WFComplexClientTask(retry_max, std::move(cb))
 	{
 		// dns 是建立在 UDP 之上的应用层协议
+		// WFComplexClientTask中默认TT_TCP
 		this->set_transport_type(TT_UDP);
 	}
 
@@ -50,6 +64,7 @@ private:
 	bool need_redirect();
 };
 
+// 初始化static member
 struct addrinfo ComplexDnsTask::hints =
 {
 	.ai_flags     = AI_NUMERICSERV | AI_NUMERICHOST,
@@ -84,10 +99,13 @@ CommMessageIn *ComplexDnsTask::message_in()
 
 bool ComplexDnsTask::init_success()
 {
+
 	if (uri_.scheme && strcasecmp(uri_.scheme, "dnss") == 0)
+		// 如果scheme是dnss
 		this->WFComplexClientTask::set_transport_type(TT_TCP_SSL);
 	else if (uri_.scheme && strcasecmp(uri_.scheme, "dns") != 0)
 	{
+		// 如果既不是dnss, 又不是dns，那么是错的
 		this->state = WFT_STATE_TASK_ERROR;
 		this->error = WFT_ERR_URI_SCHEME_INVALID;
 		return false;
@@ -180,12 +198,16 @@ WFDnsTask *WFTaskFactory::create_dns_task(const ParsedURI& uri,
 	ComplexDnsTask *task = new ComplexDnsTask(retry_max, std::move(callback));
 	const char *name;
 
+	// todo : 此处为什么这样设置
 	if (uri.path && uri.path[0] && uri.path[1])
 		name = uri.path + 1;
-	else
+	else  // 无路径或者路径为 "/"，则设置为 "."
 		name = ".";
 
 	DnsRequest *req = task->get_req();
+	/*
+	https://stackoverflow.com/questions/34841206/why-is-the-content-of-qname-field-not-the-original-domain-in-a-dns-message
+	*/
 	req->set_question(name, DNS_TYPE_A, DNS_CLASS_IN);
 
 	task->init(uri);

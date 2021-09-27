@@ -4,6 +4,8 @@
 
 协议rfc : https://datatracker.ietf.org/doc/html/rfc1035
 
+我们使用getaddrinfo函数时，可以使用域名，内部自动处理了域名的请求，这个函数虽然方便，但它是阻塞的，不大适用自己写的高并发服务器。
+
 perl calltree.pl "(?)dns" "" 1 1 2
 
 ```
@@ -433,3 +435,39 @@ struct DnsStatus
 };
 ```
 
+在它内部还是用的工厂创建的task
+
+```cpp
+/src/factory/DnsTaskImpl.cc
+WFDnsTask *WFTaskFactory::create_dns_task(const ParsedURI& uri,
+										  int retry_max,
+										  dns_callback_t callback)
+{
+	ComplexDnsTask *task = new ComplexDnsTask(retry_max, std::move(callback));
+	const char *name;
+  
+	if (uri.path && uri.path[0] && uri.path[1])
+		name = uri.path + 1;
+	else  
+		name = ".";
+
+	DnsRequest *req = task->get_req();
+	req->set_question(name, DNS_TYPE_A, DNS_CLASS_IN);
+
+	task->init(uri);
+	task->set_keep_alive(DNS_KEEPALIVE_DEFAULT);
+	return task;
+}
+```
+
+## ComplexDnsTask
+
+todo
+
+## dns protocol
+
+![dns protocol](./pics/dns_protocol.png)
+
+DnsRequest和DnsResponse 继承自 DnsMessage
+
+我们的request就是设置好question
