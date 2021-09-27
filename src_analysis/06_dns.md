@@ -1,5 +1,9 @@
 ## dns
 
+注释部分都在workflow文件夹中的源码中
+
+协议rfc : https://datatracker.ietf.org/doc/html/rfc1035
+
 perl calltree.pl "(?)dns" "" 1 1 2
 
 ```
@@ -305,3 +309,127 @@ private:
 };
 
 ```
+
+其中最主要的就是init和create_dns_task
+
+```cpp
+/src/client/WFDnsClient.cc
+int WFDnsClient::init(const std::string& url, const std::string& search_list,
+					  int ndots, int attempts, bool rotate)
+{
+	std::vector<std::string> hosts;
+	std::vector<ParsedURI> uris;
+	std::string host;
+	ParsedURI uri;
+
+	id = 0;
+	hosts = StringUtil::split_filter_empty(url, ',');
+	for (size_t i = 0; i < hosts.size(); i++)
+	{
+		host = hosts[i];
+		if (strncasecmp(host.c_str(), "dns://", 6) != 0 &&
+			strncasecmp(host.c_str(), "dnss://", 7) != 0)
+		{
+			host = "dns://" + host;
+		}
+
+		if (URIParser::parse(host, uri) != 0)
+			return -1;
+
+		uris.emplace_back(std::move(uri));
+	}
+
+	if (uris.empty() || ndots < 0 || attempts < 1)
+	{
+		errno = EINVAL;
+		return -1;
+	}
+
+	this->params = new DnsParams;
+	DnsParams::dns_params *q = ((DnsParams *)(this->params))->get_params();
+	q->uris = std::move(uris);
+	q->search_list = StringUtil::split_filter_empty(search_list, ',');
+	q->ndots = ndots > 15 ? 15 : ndots;
+	q->attempts = attempts > 5 ? 5 : attempts;
+	q->rotate = rotate;
+
+	return 0;
+}
+```
+
+这一步主要是做了两件事，解析我们的host，设置dns的 params 
+
+```cpp
+/src/client/WFDnsClient.cc
+struct dns_params
+{
+  std::vector<ParsedURI> uris;
+  std::vector<std::string> search_list;
+  int ndots;
+  int attempts;
+  bool rotate;
+};
+```
+
+第二个重要的是
+
+```cpp
+/src/client/WFDnsClient.cc
+WFDnsTask *WFDnsClient::create_dns_task(const std::string& name,
+										dns_callback_t callback)
+{
+	DnsParams::dns_params *p = ((DnsParams *)(this->params))->get_params();
+	struct DnsStatus status;
+	size_t next_server;
+	WFDnsTask *task;
+	DnsRequest *req;
+
+	next_server = p->rotate ? this->id++ % p->uris.size() : 0;
+
+	status.origin_name = name;
+	status.next_domain = 0;
+	status.attempts_left = p->attempts;
+	status.try_origin_state = DNS_STATUS_TRY_ORIGIN_FIRST;
+
+	if (!name.empty() && name.back() == '.')
+		status.next_domain = p->uris.size();
+	else if (__get_ndots(name) < p->ndots)
+		status.try_origin_state = DNS_STATUS_TRY_ORIGIN_LAST;
+
+	__has_next_name(p, &status);
+
+	task = WFTaskFactory::create_dns_task(p->uris[next_server],
+										  0, std::move(callback));
+	status.next_server = next_server;
+	status.last_server = (next_server + p->uris.size() - 1) % p->uris.size();
+
+	req = task->get_req();
+	req->set_question(status.current_name.c_str(), DNS_TYPE_A, DNS_CLASS_IN);
+	req->set_rd(1);
+
+	ComplexTask *ctask = static_cast<ComplexTask *>(task);
+	*ctask->get_mutable_ctx() = std::bind(__callback_internal,
+										  std::placeholders::_1,
+										  *(DnsParams *)params, status);
+
+	return task;
+}
+
+```
+
+可以看到其中还有个DnsStatus, 我们看看他的内部结构
+
+```cpp
+/src/client/WFDnsClient.cc
+struct DnsStatus
+{
+	std::string origin_name;
+	std::string current_name;
+	size_t next_server;			// next server to try
+	size_t last_server;			// last server to try
+	size_t next_domain;			// next search domain to try
+	int attempts_left;
+	int try_origin_state;
+};
+```
+

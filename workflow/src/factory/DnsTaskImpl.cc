@@ -36,6 +36,7 @@ public:
 	ComplexDnsTask(int retry_max, dns_callback_t&& cb):
 		WFComplexClientTask(retry_max, std::move(cb))
 	{
+		// dns 是建立在 UDP 之上的应用层协议
 		this->set_transport_type(TT_UDP);
 	}
 
@@ -160,6 +161,8 @@ bool ComplexDnsTask::need_redirect()
 
 /**********Client Factory**********/
 
+// 工厂模式跳开client去创建dns task
+// 相对于client，多了一个retry_max
 WFDnsTask *WFTaskFactory::create_dns_task(const std::string& url,
 										  int retry_max,
 										  dns_callback_t callback)
