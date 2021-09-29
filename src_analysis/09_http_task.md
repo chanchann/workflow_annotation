@@ -125,7 +125,7 @@ void WFComplexClientTask<REQ, RESP, CTX>::dispatch()
 
 但是dns部分我们忽略，等到dns章节解析时候再来详细分析,
 
-![pic](./pics/http01.png)
+![pic](https://github.com/chanchann/workflow_annotation/blob/main/src_analysis/pics/http01.png?raw=true)
 
 从图中我们可知WFRsolverTask dispatch，创建dns task进行域名解析
 
