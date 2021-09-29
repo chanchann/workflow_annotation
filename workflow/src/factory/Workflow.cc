@@ -27,13 +27,13 @@
 SeriesWork::SeriesWork(SubTask *first, series_callback_t&& cb) :
 	callback(std::move(cb))
 {
-	this->queue = new SubTask *[4];
+	this->queue = new SubTask *[4];  // 初始化容量为4
 	this->queue_size = 4;
 	this->front = 0;
 	this->back = 0;
-	this->in_parallel = false;
+	this->in_parallel = false;    // 默认不在parallel中
 	this->canceled = false;
-	first->set_pointer(this);
+	first->set_pointer(this);    // 将subTask与这个SeriesTask绑定
 	this->first = first;
 	this->last = NULL;
 	this->context = NULL;

@@ -24,18 +24,22 @@
 class ParallelTask;
 
 // SubTask是所有Task类型的基类
+// SubTask要求用户实现两个接口，dispatch和done。
+// https://github.com/sogou/workflow/issues/192
 class SubTask
 {
 public:
-	// 子任务被调起的时机
+	// dispatch代表任务的发起，可以是任何行为，
+	// 并且要求任务在完成的时候调用subtask_done方法，一般这时候已经不在dispatch线程了。
 	virtual void dispatch() = 0;
 
 private:
-	// 子任务执行完成的时机
+	// done是任务的完成行为，你可以看到subtask_done里立刻调用了任务的done。
+	// done方法把任务交回实现者，实现者要负责内存的回收，比如可能delete this
+	// done方法可以返回一个新任务，可以认为原任务转移到新任务并且立刻dispatch，所以return this也是一个常见做法。
 	virtual SubTask *done() = 0;
 
 protected:
-	// 内部实现，决定了任务流走向
 	void subtask_done();
 
 public:

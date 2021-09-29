@@ -21,8 +21,15 @@
 #include "poller.h"
 #include "mpoller.h"
 
+/*
+关于我们为什么还有一层mpoller
+这里的m代表的是multi
+批量创建，批量开始，批量销毁等等
+*/
+
+
 /**
- * @brief 挨个创建/初始poller
+ * @brief 批量创建/初始poller
  * 
  * @param params 
  * @param mpoller 
@@ -35,7 +42,7 @@ static int __mpoller_create(const struct poller_params *params,
 
 	for (i = 0; i < mpoller->nthreads; i++)
 	{
-		// 挨着挨着初始化每一个poller
+		// 挨着挨着创建每一个poller，将parmas传入指导传呼机
 		mpoller->poller[i] = poller_create(params);  
 		if (!mpoller->poller[i])  // 当有个不成功就break出去
 			break;
@@ -67,7 +74,7 @@ mpoller_t *mpoller_create(const struct poller_params *params, size_t nthreads)
 	// https://stackoverflow.com/questions/6908686/c-size-of-void
 	// 此处  offsetof(mpoller_t, poller) : 第一个元素(nthreads) 大小 (一般member var 考虑 内存对齐问题)
 	// 第二个部分是nthreads 个
-	// todo: 为何使用 void *
+	// 注明: 这里用void * 完全是为了简化写法
 	size = offsetof(mpoller_t, poller) + nthreads * sizeof (void *);  
 	mpoller = (mpoller_t *)malloc(size);    
 	if (mpoller)  // 如果malloc成功
@@ -82,6 +89,7 @@ mpoller_t *mpoller_create(const struct poller_params *params, size_t nthreads)
 	return NULL;
 }
 
+// 批量start poller线程
 int mpoller_start(mpoller_t *mpoller)
 {
 	size_t i;

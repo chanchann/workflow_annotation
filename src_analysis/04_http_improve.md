@@ -1,7 +1,8 @@
-## 分析一次http性能改动
+# workflow杂记00 : 分析一次http性能改动
 
-https://github.com/sogou/workflow/commit/a6b8a2cde33a1319c0fa731c86e8849fd108fb5b
+分析改动 : https://github.com/sogou/workflow/commit/a6b8a2cde33a1319c0fa731c86e8849fd108fb5b
 
+源码注释可看 : https://github.com/chanchann/workflow_annotation
 
 ```
 ; perl calltree.pl 'message_out' '' 1 1 2
@@ -19,13 +20,13 @@ message_out
 └── __ComplexKafkaTask::message_out	[vim src/factory/KafkaTaskImpl.cc +112]
 ```
 
-![message_out](./pics/message_out.png)
+![message_out](https://github.com/chanchann/workflow_annotation/blob/main/src_analysis/pics/message_out.png?raw=true)
 
 在我们简单的http request client中，我们的任务被调起，发送request(request优先复用，然后message_out发送)
 
 ## 旧版代码
 
-旧版代码注释看此处的workflow文件[message_out代码](../workflow/src/factory/HttpTaskImpl.cc)
+旧版代码注释看此处的workflow文件[message_out代码](https://github.com/chanchann/workflow_annotation/blob/main/workflow/src/factory/HttpTaskImpl.cc)
 
 用gdb查看
 
@@ -170,6 +171,3 @@ typedef struct __http_parser
 } http_parser_t;
 ```
 
-## 性能测试 
-
-ing

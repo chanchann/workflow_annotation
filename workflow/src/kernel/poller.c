@@ -76,9 +76,9 @@ struct __poller
 	pthread_t tid;
 	int pfd;
 	int timerfd;
-	int pipe_rd;
-	int pipe_wr;
-	int stopped;
+	int pipe_rd;      // pipe 的读端
+	int pipe_wr;      // pipe 的写端
+	int stopped;     // 是否运行标志位
 	struct rb_root timeo_tree;
 	struct rb_node *tree_first;
 	struct list_head timeo_list;
@@ -942,10 +942,59 @@ static void __poller_set_timer(poller_t *poller)
 	pthread_mutex_unlock(&poller->mutex);
 }
 
+// 检测事件核心部分
 static void *__poller_thread_routine(void *arg)
 {
+	// 这里传入的参数就是poller
+	/*
+		struct __poller
+		{
+			size_t max_open_files;
+			poller_message_t *(*create_message)(void *);
+			int (*partial_written)(size_t, void *);
+			void (*cb)(struct poller_result *, void *);
+			void *ctx;
+
+			pthread_t tid;
+			int pfd;
+			int timerfd;
+			int pipe_rd;
+			int pipe_wr;
+			int stopped;
+			struct rb_root timeo_tree;
+			struct rb_node *tree_first;
+			struct list_head timeo_list;
+			struct list_head no_timeo_list;
+			struct __poller_node **nodes;
+			pthread_mutex_t mutex;
+			char buf[POLLER_BUFSIZE];
+		};
+	*/
 	poller_t *poller = (poller_t *)arg;
+
+	// typedef struct epoll_event __poller_event_t;
+	// 这里就是一个epoll_event 数组
 	__poller_event_t events[POLLER_EVENTS_MAX];
+	/*
+		struct __poller_node
+		{
+			int state;    
+			int error;
+			struct poller_data data;
+		#pragma pack(1)
+			union
+			{
+				struct list_head list;
+				struct rb_node rb;
+			};
+		#pragma pack()
+			char in_rbtree;
+			char removed;
+			int event;
+			struct timespec timeout;
+			struct __poller_node *res;
+		};
+	*/
 	struct __poller_node time_node;
 	struct __poller_node *node;
 	int has_pipe_event;
@@ -961,7 +1010,13 @@ static void *__poller_thread_routine(void *arg)
 		for (i = 0; i < nevents; i++)
 		{
 			node = (struct __poller_node *)__poller_event_data(&events[i]);
-			if (node > (struct __poller_node *)1)
+			// (struct __poller_node *)1 的含义 :
+			// 在event的data里，用0和1分别代表定时器和管道事件。
+			// 因为data是一个指针，所以直接就把数值1强转成指针
+			// 1不可能是一个合法地址，所以看到node==1就知道是一个pipe事件
+			// pipe用来通知各种fd的删除和poller的停止
+			// 这里判断if (node>1)，是因为大多数情况下，都是正常的网络事件，于是只需判断一次，就能进入处理逻辑了
+			if (node > (struct __poller_node *)1)  
 			{
 				switch (node->data.operation)
 				{
@@ -994,7 +1049,7 @@ static void *__poller_thread_routine(void *arg)
 					break;
 				}
 			}
-			else if (node == (struct __poller_node *)1)
+			else if (node == (struct __poller_node *)1)  // 1 为 pipe事件
 				has_pipe_event = 1;
 		}
 
@@ -1082,7 +1137,7 @@ poller_t *poller_create(const struct poller_params *params)
 
     // calloc() gives you a zero-initialized buffer, while malloc() leaves the memory uninitialized.
     // https://stackoverflow.com/questions/1538420/difference-between-malloc-and-calloc
-	poller->nodes = (struct __poller_node **)calloc(n, sizeof (void *));
+	poller->nodes = (struct __poller_node **)calloc(n, sizeof (void *));  // 分配max_open_files 这么多的nodes
 	if (poller->nodes)
 	{
 		poller->pfd = __poller_create_pfd();   // !!!这里终于到底了了，去调用了epoll_create(1);
@@ -1108,7 +1163,7 @@ poller_t *poller_create(const struct poller_params *params)
 					INIT_LIST_HEAD(&poller->no_timeo_list);
 					poller->nodes[poller->timerfd] = POLLER_NODE_ERROR;
 					poller->nodes[poller->pfd] = POLLER_NODE_ERROR;
-					poller->stopped = 1;
+					poller->stopped = 1;  
 					return poller;
 				}
 
@@ -1134,6 +1189,12 @@ void poller_destroy(poller_t *poller)
 	free(poller);
 }
 
+/**
+ * @brief 主要作用就是开启__poller_thread_routine线程
+ * 
+ * @param poller 
+ * @return int 
+ */
 int poller_start(poller_t *poller)
 {
 	pthread_t tid;
@@ -1146,7 +1207,7 @@ int poller_start(poller_t *poller)
 		if (ret == 0)
 		{
 			poller->tid = tid;
-			poller->nodes[poller->pipe_rd] = POLLER_NODE_ERROR;
+			poller->nodes[poller->pipe_rd] = POLLER_NODE_ERROR;   // todo : 设置这个干嘛
 			poller->nodes[poller->pipe_wr] = POLLER_NODE_ERROR;
 			poller->stopped = 0;
 		}

@@ -350,8 +350,9 @@ WFRouterTask *WFComplexClientTask<REQ, RESP, CTX>::route()
 		.tracing		=	&tracing_,
 	};
 
-	if (!ns_policy_)
+	if (!ns_policy_)   // 刚初始化的时候为Null
 	{
+		
 		WFNameService *ns = WFGlobal::get_name_service();
 		ns_policy_ = ns->get_policy(uri_.host ? uri_.host : "");
 	}
@@ -381,16 +382,17 @@ void WFComplexClientTask<REQ, RESP, CTX>::dispatch()
 	switch (this->state)
 	{
 	case WFT_STATE_UNDEFINED:
-		if (this->check_request())
+		if (this->check_request())   // todo : 这里有何用
 		{
-			if (this->route_result_.request_object)
+			// 这里 RouteManager::RouteResult route_result_;
+			if (this->route_result_.request_object)   // 第一次走着初始化是空的，直接到下面产生router_task_
 			{
 	case WFT_STATE_SUCCESS:
 				this->set_request_object(route_result_.request_object);
 				this->WFClientTask<REQ, RESP>::dispatch();
 				return;
 			}
-
+			// 产生一个router_task_插入到前面去做dns解析
 			router_task_ = this->route();
 			series_of(this)->push_front(this);
 			series_of(this)->push_front(router_task_);

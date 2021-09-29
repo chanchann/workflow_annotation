@@ -1346,7 +1346,7 @@ int Communicator::create_poller(size_t poller_threads)
 
 
 /**
- * @brief 初始化
+ * @brief 主要就两件事，一个是创建poller线程，一个就是创建线程池
  * 
  * @param poller_threads 
  * @param handler_threads 

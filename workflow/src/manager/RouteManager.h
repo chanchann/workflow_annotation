@@ -29,6 +29,8 @@
 #include "EndpointParams.h"
 #include "CommScheduler.h"
 
+
+// router是负责dns解析或upstream查找的，和连接没有关系
 class RouteManager
 {
 public:

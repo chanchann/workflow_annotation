@@ -281,14 +281,14 @@ src/protocol/mysql_stream.h:23:struct __mysql_stream
 src/protocol/ProtocolMessage.h:74:class ProtocolMessage : CommMessageOut, CommMessageIn
 src/protocol/ProtocolMessage.h:107:class Attachment
 src/protocol/ProtocolMessage.h:167:class ProtocolWrapper : ProtocolMessage
-src/protocol/dns_parser.h:119:struct dns_header
-src/protocol/dns_parser.h:148:struct dns_question
-src/protocol/dns_parser.h:155:struct dns_record_soa
-src/protocol/dns_parser.h:166:struct dns_record_srv
-src/protocol/dns_parser.h:174:struct dns_record_mx
-src/protocol/dns_parser.h:180:struct dns_record
-src/protocol/dns_parser.h:190:struct __dns_parser
-src/protocol/dns_parser.h:206:struct __dns_record_cursor
+src/protocol/dns_parser.h:160:struct dns_header
+src/protocol/dns_parser.h:221:struct dns_question
+src/protocol/dns_parser.h:262:struct dns_record_soa
+src/protocol/dns_parser.h:282:struct dns_record_srv
+src/protocol/dns_parser.h:302:struct dns_record_mx
+src/protocol/dns_parser.h:318:struct dns_record
+src/protocol/dns_parser.h:327:struct __dns_parser
+src/protocol/dns_parser.h:343:struct __dns_record_cursor
 src/protocol/SSLWrapper.h:27:class SSLHandshaker : ProtocolMessage
 src/protocol/SSLWrapper.h:44:class SSLWrapper : ProtocolWrapper
 src/protocol/SSLWrapper.h:70:class ServiceSSLWrapper : SSLWrapper
@@ -338,13 +338,15 @@ src/kernel/Communicator.cc:39:struct CommConnEntry
 src/kernel/Communicator.cc:241:class CommServiceTarget : CommTarget
 src/kernel/IOService_linux.h:29:class IOSession
 src/kernel/IOService_linux.h:62:class IOService
-src/kernel/SubTask.h:27:class SubTask
-src/kernel/SubTask.h:62:class ParallelTask : SubTask
+src/kernel/SubTask.h:29:class SubTask
+src/kernel/SubTask.h:66:class ParallelTask : SubTask
 src/kernel/IORequest.h:24:class IORequest : SubTask, IOSession
 src/kernel/IOService_thread.h:30:class IOSession
 src/kernel/IOService_thread.h:69:class IOService
 src/kernel/poller.c:48:struct __poller_node
 src/kernel/poller.c:67:struct __poller
+src/kernel/poller.c:950:struct __poller
+src/kernel/poller.c:979:struct __poller_node
 src/kernel/Communicator.h:31:class CommConnection
 src/kernel/Communicator.h:40:class CommTarget
 src/kernel/Communicator.h:101:class CommMessageOut
@@ -370,9 +372,9 @@ src/kernel/IOService_linux.cc:132:struct io_event
 src/kernel/Executor.h:25:class ExecQueue
 src/kernel/Executor.h:44:class ExecSession
 src/kernel/Executor.h:61:class Executor
-src/kernel/list.h:13:struct list_head
-src/kernel/list.h:217:struct slist_node
-src/kernel/list.h:221:struct slist_head
+src/kernel/list.h:15:struct list_head
+src/kernel/list.h:218:struct slist_node
+src/kernel/list.h:222:struct slist_head
 src/kernel/thrdpool.h:25:struct thrdpool_task
 src/kernel/CommRequest.h:26:class CommRequest : SubTask, CommSession
 src/kernel/Executor.cc:25:struct ExecTaskEntry
