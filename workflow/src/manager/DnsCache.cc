@@ -96,7 +96,7 @@ const DnsCache::DnsHandle *DnsCache::put(const HostPort& host_port,
 		expire_time = cur_time + dns_ttl_default;
 
 	std::lock_guard<std::mutex> lock(mutex_);
-
+	
 	return cache_pool_.put(host_port, {addrinfo, confident_time, expire_time});
 }
 

@@ -371,8 +371,6 @@ const DnsCache::DnsHandle *DnsCache::get_inner(const HostPort& host_port, int ty
 ```cpp
 // 新版
 
-// 我感觉这里锁粒度又太大了
-// todo : 此处还可以优化一番
 const DnsCache::DnsHandle *DnsCache::get_inner(const HostPort& host_port, int type)
 {
 	int64_t cur_time = GET_CURRENT_SECOND;
@@ -480,7 +478,6 @@ const DnsCache::DnsHandle *DnsCache::put(const HostPort& host_port,
 }
 
 // 同样也是在外面lock住，那里面就不用加锁了，直接全部锁住
-// todo : 这里也需要优化一番，可以把锁粒度减更小
 // 可见完全没锁
 const Handle *put(const KEY& key, VALUE value)
 {
