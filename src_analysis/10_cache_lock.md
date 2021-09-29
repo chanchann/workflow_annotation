@@ -1,3 +1,4 @@
+#! https://zhuanlan.zhihu.com/p/415403136
 # workflow杂记01 : 分析一次cache中lock的改动
 
 分析代码改动地址 : https://github.com/sogou/workflow/commit/b1db18cd39566ef90d4962f29fd080a6e648b081
@@ -317,6 +318,7 @@ const Handle *get(const KEY& key)
 
 const DnsCache::DnsHandle *DnsCache::get_inner(const HostPort& host_port, int type)
 {
+
 	const DnsHandle *handle = cache_pool_.get(host_port);  // 此处在get内部加锁
 
 	if (handle)
@@ -382,7 +384,7 @@ const DnsCache::DnsHandle *DnsCache::get_inner(const HostPort& host_port, int ty
 		switch (type)
 		{
 		case GET_TYPE_TTL:
-			if (cur_time > handle->value.expire_time)
+			if (cur_time > handle->value.expire_time)   // 这个概率非常小
 			{
 				const_cast<DnsHandle *>(handle)->value.expire_time += TTL_INC;
 				cache_pool_.release(handle);
@@ -612,12 +614,11 @@ void del(const KEY& key)
 
 ## 总结
 
-老版代码中，加锁思路不清晰，导致了有几处重复加锁的情况
+老版代码中，加锁思路不清晰，导致了有几处重复加多把锁的情况
 
 新版代码一个原则，在外部加锁，让LRU这个基本数据结构内部的操作不考虑多线程竞争，这样思路就非常清晰明了
 
 从直觉上来说，我们LRU作为一个基本的数据结构，也最好不要考虑加锁，所有的加锁职责交给cache这个我们需要的实体，因为我们程序竞争的是cache而不是LRU
 
-BUT
+而且我们在外部加锁的话，仔细看其实锁的粒度并没有什么变化，比如get_inner中，if条件中的概率是非常小的，所以大部分时间锁的粒度还是非常小。
 
-在LRU内部有一个好处在于，我们可以把锁粒度变小，比如put这个函数，如果我们在LRU的put内部设计更精细加锁，是否能减少锁带来的性能开销？
