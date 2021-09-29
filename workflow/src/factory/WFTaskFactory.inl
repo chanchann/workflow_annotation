@@ -385,6 +385,7 @@ void WFComplexClientTask<REQ, RESP, CTX>::dispatch()
 		if (this->check_request())   // todo : 这里有何用
 		{
 			// 这里 RouteManager::RouteResult route_result_;
+			// 通过dns来产生request_object
 			if (this->route_result_.request_object)   // 第一次走着初始化是空的，直接到下面产生router_task_
 			{
 	case WFT_STATE_SUCCESS:

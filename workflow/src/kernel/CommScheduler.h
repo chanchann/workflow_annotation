@@ -126,10 +126,12 @@ public:
 				int wait_timeout, CommTarget **target)
 	{
 		int ret = -1;
-
+		// 就做两件事
+		// 1. 获取target
 		*target = object->acquire(wait_timeout);
 		if (*target)
 		{
+			// 向target发送request
 			ret = this->comm.request(session, *target);
 			if (ret < 0)
 				(*target)->release(0);

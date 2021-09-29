@@ -36,6 +36,7 @@ void CommRequest::handle(int state, int error)
 
 void CommRequest::dispatch()
 {
+	// 发送请求
 	if (this->scheduler->request(this, this->object, this->wait_timeout,
 								 &this->target) < 0)
 	{
