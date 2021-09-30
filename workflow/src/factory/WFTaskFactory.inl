@@ -598,7 +598,8 @@ WFThreadTask<INPUT, OUTPUT> *
 WFThreadTaskFactory<INPUT, OUTPUT>::create_thread_task(const std::string& queue_name,
 						std::function<void (INPUT *, OUTPUT *)> routine,
 						std::function<void (WFThreadTask<INPUT, OUTPUT> *)> callback)
-{
+{	
+	// 隐藏routine
 	return new __WFThreadTask<INPUT, OUTPUT>(WFGlobal::get_exec_queue(queue_name),
 											 WFGlobal::get_compute_executor(),
 											 std::move(routine),

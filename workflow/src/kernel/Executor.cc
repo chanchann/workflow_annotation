@@ -30,6 +30,12 @@ struct ExecTaskEntry
 	thrdpool_t *thrdpool;
 };
 
+/**
+ * @brief  就是初始化list和mutex
+ * @note   
+ * @retval 
+ */
+ */
 int ExecQueue::init()
 {
 	int ret;
@@ -45,6 +51,11 @@ int ExecQueue::init()
 	return -1;
 }
 
+/**
+ * @brief  就是销毁mutex
+ * @note   
+ * @retval None
+ */
 void ExecQueue::deinit()
 {
 	pthread_mutex_destroy(&this->mutex);
@@ -121,15 +132,17 @@ int Executor::request(ExecSession *session, ExecQueue *queue)
 {
 	struct ExecTaskEntry *entry;
 
-	session->queue = queue;
+	session->queue = queue;   // 给session的queue设置上
+	// 实例化一个entry
 	entry = (struct ExecTaskEntry *)malloc(sizeof (struct ExecTaskEntry));
 	if (entry)
 	{
 		entry->session = session;
-		entry->thrdpool = this->thrdpool;
+		entry->thrdpool = this->thrdpool;  // 想把成员变量对应的值赋上
+
 		pthread_mutex_lock(&queue->mutex);
-		list_add_tail(&entry->list, &queue->task_list);
-		if (queue->task_list.next == &entry->list)
+		list_add_tail(&entry->list, &queue->task_list);  // task加入执行队列中
+		if (queue->task_list.next == &entry->list)    // 如果这是第一个任务，那么可以直接调度起来这个线程
 		{
 			struct thrdpool_task task = {
 				.routine	=	Executor::executor_thread_routine,

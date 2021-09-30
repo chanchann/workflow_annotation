@@ -43,6 +43,12 @@ struct __thrdpool_task_entry
 
 static pthread_t __zero_tid;
 
+/**
+ * @brief  线程池的消费者，在创建线程池的时候，当成线程的callback运行起来
+ * @note   
+ * @param  *arg: 
+ * @retval None
+ */
 static void *__thrdpool_routine(void *arg)
 {
 	thrdpool_t *pool = (thrdpool_t *)arg;
@@ -171,6 +177,13 @@ static int __thrdpool_create_threads(size_t nthreads, thrdpool_t *pool)
 	return -1;
 }
 
+/**
+ * @brief  线程池的创建
+ * @note   
+ * @param  nthreads: 
+ * @param  stacksize: 
+ * @retval 
+ */
 thrdpool_t *thrdpool_create(size_t nthreads, size_t stacksize)
 {
 	thrdpool_t *pool;
@@ -206,6 +219,14 @@ thrdpool_t *thrdpool_create(size_t nthreads, size_t stacksize)
 	return NULL;
 }
 
+/**
+ * @brief  这里的线程池调度，其实就是生产者，加入任务到list里，通知消费者来消费
+ * @note   
+ * @param  *task: 
+ * @param  *buf: 这里就是struct __thrdpool_task_entry，难道又是为了简便偷懒协程void *buf？
+ * @param  *pool: 
+ * @retval None
+ */
 inline void __thrdpool_schedule(const struct thrdpool_task *task, void *buf,
 								thrdpool_t *pool)
 {
@@ -213,11 +234,21 @@ inline void __thrdpool_schedule(const struct thrdpool_task *task, void *buf,
 
 	entry->task = *task;
 	pthread_mutex_lock(&pool->mutex);
+
 	list_add_tail(&entry->list, &pool->task_queue);
 	pthread_cond_signal(&pool->cond);
+
 	pthread_mutex_unlock(&pool->mutex);
 }
 
+/**
+ * @brief  就是调用__thrdpool_schedule
+ * @note   
+ * @param  *task: 
+ * @param  *pool: 
+ * @retval 
+ */
+// todo: 为什么要这样要这样再封一层呢，难道就是我了隐藏__thrdpool_schedule这个函数的功能？
 int thrdpool_schedule(const struct thrdpool_task *task, thrdpool_t *pool)
 {
 	void *buf = malloc(sizeof (struct __thrdpool_task_entry));
@@ -231,6 +262,12 @@ int thrdpool_schedule(const struct thrdpool_task *task, thrdpool_t *pool)
 	return -1;
 }
 
+/**
+ * @brief  给线程池扩容
+ * @note   
+ * @param  *pool: 
+ * @retval 
+ */
 int thrdpool_increase(thrdpool_t *pool)
 {
 	pthread_attr_t attr;
@@ -263,6 +300,11 @@ inline int thrdpool_in_pool(thrdpool_t *pool)
 	return pthread_getspecific(pool->key) == pool;
 }
 
+/**
+ * @brief  销毁线程池
+ * @note   
+ * @retval None
+ */
 void thrdpool_destroy(void (*pending)(const struct thrdpool_task *),
 					  thrdpool_t *pool)
 {

@@ -34,25 +34,19 @@ void callback(AddTask *task)
 	auto *output = task->get_output();
 
 	assert(task->get_state() == WFT_STATE_SUCCESS);
-
-	if (output->error)
-        spdlog("Error : {} - {}", output->error, strerror(output->error));
-	else
-	{
-        spdlog("{} + {} = {}", input->x, input->y, output->res);
-	}
+    spdlog::info("{} + {} = {}", input->x, input->y, output->res);
 }
 
 int main()
 {
-    
-	AddTask *task = MMFactory::create_thread_task("add_task",
+    using AddFactory = WFThreadTaskFactory<AddInput, AddOutput>;
+	AddTask *task = AddFactory::create_thread_task("add_task",
 												add_routine,
 												callback);
 	auto *input = task->get_input();
 
-	input->a = 1;
-	input->b = 2;
+	input->x = 1;
+	input->y = 2;
 
 	WFFacilities::WaitGroup wait_group(1);
 

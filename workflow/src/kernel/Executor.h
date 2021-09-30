@@ -23,10 +23,12 @@
 #include <pthread.h>
 #include "list.h"
 
+
+// 看名字就知道是个执行队列
 class ExecQueue
 {
 public:
-	int init();
+	int init();  
 	void deinit();
 
 private:
@@ -52,18 +54,18 @@ protected:
 	ExecQueue *get_queue() { return this->queue; }
 
 private:
-	ExecQueue *queue;
+	ExecQueue *queue;  
 
 public:
 	virtual ~ExecSession() { }
-	friend class Executor;
+	friend class Executor;  // Executor可以直接access这里的private queue
 };
 
 class Executor
 {
 public:
-	int init(size_t nthreads);
-	void deinit();
+	int init(size_t nthreads);  // 创建线程吹
+	void deinit();  
 
 	int request(ExecSession *session, ExecQueue *queue);
 
