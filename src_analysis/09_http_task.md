@@ -333,7 +333,9 @@ protected:
 };
 ```
 
-从这个
+从这个类成员可以看出，大概是为了负载均衡而设计的。
+
+## CommTarget
 
 而CommTarget是通讯目标，基本上就是ip+port, 还有两个超时参数。连接池什么的都在target里。
 
@@ -345,9 +347,7 @@ int request(CommSession *session, CommSchedObject *object,
 
 ```
 
-这里参数是CommTarget **target，是一个传出参数, 
-
-
+这里参数是CommTarget **target，是一个传出参数, 是从里面`object->acquire(wait_timeout);` 获取出来的
 
 ## 仔细解析scheduler->request
 
@@ -364,5 +364,5 @@ int request(CommSession *session, CommSchedObject *object,
 }
 ```
 
-就做两件事，一件事获取target，一件是调用request去发request请求
+就做两件事，一件事获取通信target，一件是调用request去发request请求
 

@@ -32,6 +32,7 @@ public:
 	size_t get_cur_load() { return this->cur_load; }
 
 private:
+	// 这里是纯虚函数，他的两个子类 CommSchedTarget，CommSchedGroup 实现
 	virtual CommTarget *acquire(int wait_timeout) = 0;
 
 protected:
