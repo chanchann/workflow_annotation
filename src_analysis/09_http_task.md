@@ -320,6 +320,21 @@ void WFComplexClientTask<REQ, RESP, CTX>::dispatch()
 
 可以看出我们给个url，dns解析出来之后，我们有了request的目标了
 
+```cpp
+class CommSchedObject
+{
+private:
+	virtual CommTarget *acquire(int wait_timeout) = 0;
+
+protected:
+	size_t max_load;
+	size_t cur_load;
+	...
+};
+```
+
+从这个
+
 而CommTarget是通讯目标，基本上就是ip+port, 还有两个超时参数。连接池什么的都在target里。
 
 CommTarget是在`scheduler->request()`中生成的
@@ -330,7 +345,9 @@ int request(CommSession *session, CommSchedObject *object,
 
 ```
 
-这里参数是CommTarget **target，是一个传出参数
+这里参数是CommTarget **target，是一个传出参数, 
+
+
 
 ## 仔细解析scheduler->request
 
@@ -348,3 +365,4 @@ int request(CommSession *session, CommSchedObject *object,
 ```
 
 就做两件事，一件事获取target，一件是调用request去发request请求
+
