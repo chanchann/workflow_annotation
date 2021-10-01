@@ -1,5 +1,20 @@
 ## workflow 源码解析 05 : ThreadPool
 
+## 先看接口
+
+接口非常简洁
+
+```cpp
+thrdpool_t *thrdpool_create(size_t nthreads, size_t stacksize);
+int thrdpool_schedule(const struct thrdpool_task *task, thrdpool_t *pool);
+int thrdpool_increase(thrdpool_t *pool);
+int thrdpool_in_pool(thrdpool_t *pool);
+void thrdpool_destroy(void (*pending)(const struct thrdpool_task *),
+					  thrdpool_t *pool);
+```
+
+就是线程池创建，销毁，扩容，判断是否[thrdpool_in_pool 这是啥？]， 
+
 ## 线程池的创建
 
 ## 生产者-消费者

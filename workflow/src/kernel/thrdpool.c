@@ -23,6 +23,20 @@
 #include "list.h"
 #include "thrdpool.h"
 
+/*
+复习下c语言的线程
+
+1. pthread_key_t
+
+线程存储， Thread Specific Data
+
+
+
+
+
+
+*/
+
 struct __thrdpool
 {
 	struct list_head task_queue;

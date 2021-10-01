@@ -1,4 +1,5 @@
-## workflow 源码解析 04 : ThreadTask
+#! https://zhuanlan.zhihu.com/p/415833220
+# workflow 源码解析 04 : ThreadTask
 
 我们先读源码可以先从thread task入手，相对而言比较容易理解（因为不涉及网络相关的内容）
 
@@ -194,7 +195,7 @@ private:
 
 再次看下我们的UML
 
-![pic](./pics/exeReuest.png)
+![pic](https://github.com/chanchann/workflow_annotation/blob/main/src_analysis/pics/exeReuest.png?raw=true)
 
 其中的handle在子类ExecRequest中实现了,
 
