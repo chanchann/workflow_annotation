@@ -27,10 +27,15 @@
 typedef struct __poller poller_t;
 typedef struct __poller_message poller_message_t;
 
+// poller_message_t是一条完整的消息，这是一个变长结构体，需要而且只需要实现append。
 struct __poller_message
 {
+	// append的参数const void *buf和size_t *size分别是收到的数据以及数据的长度。
+	// 如果buf内容跨越一条消息（所谓tcp粘包），可通过修改*size表示这条消息消费的字节数，而剩下的数据被下一条消息消费。
+	// append返回1表示本条消息已经完整（callback会得到一次SUCCESS状态），返回0表示需要继续传输，返回-1表示失败。
+	// 失败时必须填写的errno，用于之后的失败返回。
 	int (*append)(const void *, size_t *, poller_message_t *);
-	char data[0];
+	char data[0];   // 柔性数组
 };
 
 struct poller_data

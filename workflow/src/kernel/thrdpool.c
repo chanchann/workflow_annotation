@@ -23,20 +23,6 @@
 #include "list.h"
 #include "thrdpool.h"
 
-/*
-复习下c语言的线程
-
-1. pthread_key_t
-
-线程存储， Thread Specific Data
-
-
-
-
-
-
-*/
-
 struct __thrdpool
 {
 	struct list_head task_queue;
@@ -66,29 +52,52 @@ static pthread_t __zero_tid;
 static void *__thrdpool_routine(void *arg)
 {
 	thrdpool_t *pool = (thrdpool_t *)arg;
-	struct list_head **pos = &pool->task_queue.next;
+	struct list_head **pos = &pool->task_queue.next;  // 第一个任务
+	/*
+	struct __thrdpool_task_entry
+	{
+		struct list_head list;    // 用来串起来thrdpool_task
+		struct thrdpool_task task;
+	};
+	*/
 	struct __thrdpool_task_entry *entry;
 	void (*task_routine)(void *);
 	void *task_context;
 	pthread_t tid;
 
-	pthread_setspecific(pool->key, pool);
+	// todo : 此处为什么要这样设置
+	pthread_setspecific(pool->key, pool);   // 此处把pool搞成thread_local了
 	while (1)
 	{
 		pthread_mutex_lock(&pool->mutex);
+		// 这个队列是线程池公共的队列，所以需要加锁
+		
+		// 此处是消费者行为，如果没停止，且任务队列没任务，就wait在这
 		while (!pool->terminate && list_empty(&pool->task_queue))
 			pthread_cond_wait(&pool->cond, &pool->mutex);
 
-		if (pool->terminate)
+		if (pool->terminate)  // 停止了就出去
 			break;
 
+		// 我们取出第一个这个task
 		entry = list_entry(*pos, struct __thrdpool_task_entry, list);
-		list_del(*pos);
+		list_del(*pos); 
+
 		pthread_mutex_unlock(&pool->mutex);
 
+		/*
+		struct thrdpool_task
+		{
+			void (*routine)(void *);
+			void *context;
+		}; 
+		一个task，包含了需要作什么，还需要一个上下文(task运行需要的一些参数)
+		*/
 		task_routine = entry->task.routine;
 		task_context = entry->task.context;
 		free(entry);
+
+		// 此处是执行
 		task_routine(task_context);
 
 		if (pool->nthreads == 0)
@@ -101,17 +110,26 @@ static void *__thrdpool_routine(void *arg)
 
 	/* One thread joins another. Don't need to keep all thread IDs. */
 	tid = pool->tid;
-	pool->tid = pthread_self();
+	pool->tid = pthread_self(); 
+	// todo : 退出细节还需要画画图
 	if (--pool->nthreads == 0)
 		pthread_cond_signal(pool->terminate);
 
-	pthread_mutex_unlock(&pool->mutex);
+	pthread_mutex_unlock(&pool->mutex);   // todo: 这里如何多了个unlock，之前又是哪里lock的呢，理一下这个
+
+	// todo : 此处__zero_tid何用
 	if (memcmp(&tid, &__zero_tid, sizeof (pthread_t)) != 0)
 		pthread_join(tid, NULL);
 
 	return NULL;
 }
 
+/**
+ * @brief  初始化lock相关，就是mutex，conditional_variable
+ * @note   
+ * @param  *pool: 
+ * @retval 
+ */
 static int __thrdpool_init_locks(thrdpool_t *pool)
 {
 	int ret;
@@ -202,10 +220,11 @@ thrdpool_t *thrdpool_create(size_t nthreads, size_t stacksize)
 {
 	thrdpool_t *pool;
 	int ret;
-
+	// 1. 分配
 	pool = (thrdpool_t *)malloc(sizeof (thrdpool_t));
 	if (pool)
 	{
+		// 2. 初始化
 		if (__thrdpool_init_locks(pool) >= 0)
 		{
 			ret = pthread_key_create(&pool->key, NULL);

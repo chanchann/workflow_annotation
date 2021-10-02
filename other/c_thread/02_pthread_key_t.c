@@ -78,6 +78,9 @@ void* thread_function(void* args)
 int main()
 {
     pthread_t threadIDs[5]; 
+    // pthread_key_create 函数来申请一个槽位。在 NPTL 实现下，pthread_key_t 是无符号整型
+    // pthread_key_create 调用成功时会将一个小于 1024 的值填入第一个入参指向的 pthread_key_t 类型的变量中
+    
     pthread_key_create(&thread_log_key, close_thread_log);
     for(int i = 0; i < 5; ++i)
     {

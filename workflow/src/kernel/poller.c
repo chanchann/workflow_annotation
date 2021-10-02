@@ -67,11 +67,17 @@ struct __poller_node
 
 struct __poller
 {
-	size_t max_open_files;
-	poller_message_t *(*create_message)(void *);
+	size_t max_open_files;  // 如果为0则默认为65536
+	// 发生读事件时创建一条消息。poller既不是proactor也不是reactor，而是以完整的一条消息为交互单位。
+	// 其中的void *参数来自于struct poller_data里的void *context（注意不是poller_params里的context）。
+	// poller_message_t是一条完整的消息，这是一个变长结构体，需要而且只需要实现append
+	poller_message_t *(*create_message)(void *); 
+	// 写的时候表示写成功了一部分数据，一般用来更新下一个超时。参数void *是poller_data里的context。
 	int (*partial_written)(size_t, void *);
+	// 用于返回结果，参数是一个poller_result和context。
 	void (*cb)(struct poller_result *, void *);
-	void *ctx;
+	// callback里的void *参数。
+	void *ctx;  
 
 	pthread_t tid;
 	int pfd;
@@ -1117,7 +1123,8 @@ static int __poller_create_timer(poller_t *poller)
 }
 
 /**
- * @brief 
+ * @brief 产生一个poller对象。需要传一个params参数，包含的域在poller_t中
+ * 
  * 
  * @param params 
  * @return poller_t* 
@@ -1191,6 +1198,7 @@ void poller_destroy(poller_t *poller)
 
 /**
  * @brief 主要作用就是开启__poller_thread_routine线程
+ * 启动poller。poller被创建后，是处于停止状态。调用poller_start可以让poller开始运行。
  * 
  * @param poller 
  * @return int 
