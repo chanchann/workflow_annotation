@@ -34,8 +34,26 @@ void msgqueue_set_block(msgqueue_t *queue);
 void msgqueue_destroy(msgqueue_t *queue);
 ```
 
-## 
+## 一个小demo
 
+
+
+```cpp
+int main()
+{
+    msgqueue_t *mq = msgqueue_create(10, -static_cast<int>(sizeof (void *)));
+    char str[sizeof (void *) + 6];
+    char *p = str + sizeof (void *);
+    strcpy(p, "hello");
+    msgqueue_put(p, mq);
+    p = static_cast<char *>(msgqueue_get(mq));
+    printf("%s\n", p);
+    return 0;
+}
+```
+
+
+## msgqueue_create
 
 我们上一节看到的 create_poller
 
@@ -52,71 +70,55 @@ int Communicator::create_poller(size_t poller_threads)
 
 create_poller 完成这几件事 : msgqueue_create, mpoller_create, mpoller_start
 
-我们已经知道如何创建poller并启动，现在来看看msgqueue
+我们已经知道如何创建poller并启动，现在来看看创建msgqueue
+
+这里就是分配空间，初始化
 
 ```cpp
 msgqueue_t *msgqueue_create(size_t maxlen, int linkoff)
 {
 	msgqueue_t *queue = (msgqueue_t *)malloc(sizeof (msgqueue_t));
-	int ret;
 
-	if (!queue)
-		return NULL;
+	pthread_mutex_init(&queue->get_mutex, NULL)
+	pthread_mutex_init(&queue->put_mutex, NULL);
+	pthread_cond_init(&queue->get_cond, NULL);
+	pthread_cond_init(&queue->put_cond, NULL);
 
-	ret = pthread_mutex_init(&queue->get_mutex, NULL);
-	if (ret == 0)
-	{
-		ret = pthread_mutex_init(&queue->put_mutex, NULL);
-		if (ret == 0)
-		{
-			ret = pthread_cond_init(&queue->get_cond, NULL);
-			if (ret == 0)
-			{
-				ret = pthread_cond_init(&queue->put_cond, NULL);
-				if (ret == 0)
-				{
-					queue->msg_max = maxlen;
-					queue->linkoff = linkoff;
-					queue->head1 = NULL;
-					queue->head2 = NULL;
-					queue->get_head = &queue->head1;
-					queue->put_head = &queue->head2;
-					queue->put_tail = &queue->head2;
-					queue->msg_cnt = 0;
-					queue->nonblock = 0;
-					return queue;
-				}
-
-				pthread_cond_destroy(&queue->get_cond);
-			}
-
-			pthread_mutex_destroy(&queue->put_mutex);
-		}
-
-		pthread_mutex_destroy(&queue->get_mutex);
-	}
-
-	errno = ret;
-	free(queue);
-	return NULL;
+	queue->msg_max = maxlen;
+	queue->linkoff = linkoff;
+	queue->head1 = NULL;
+	queue->head2 = NULL;
+	queue->get_head = &queue->head1;
+	queue->put_head = &queue->head2;
+	queue->put_tail = &queue->head2;
+	queue->msg_cnt = 0;
+	queue->nonblock = 0;
+	...
 }
 ```
 
 ```cpp
-struct poller_result
-{
-#define PR_ST_SUCCESS		0
-#define PR_ST_FINISHED		1
-#define PR_ST_ERROR			2
-#define PR_ST_DELETED		3
-#define PR_ST_MODIFIED		4
-#define PR_ST_STOPPED		5
-	int state;
-	int error;
-	struct poller_data data;
-	/* In callback, spaces of six pointers are available from here. */
-};
+typedef struct __msgqueue msgqueue_t;
 
+struct __msgqueue
+{
+	size_t msg_max;
+	size_t msg_cnt;
+	int linkoff;
+	int nonblock;
+	void *head1;
+	void *head2;
+	void **get_head;
+	void **put_head;
+	void **put_tail;
+	pthread_mutex_t get_mutex;
+	pthread_mutex_t put_mutex;
+	pthread_cond_t get_cond;
+	pthread_cond_t put_cond;
+};
 ```
+
+
+
 
 

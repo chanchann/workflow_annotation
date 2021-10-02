@@ -31,16 +31,14 @@
 #include <pthread.h>
 #include "msgqueue.h"
 
-// 消息队列就是个单链表
-// 此处有两个链表，高效swap使用
 struct __msgqueue
 {
 	size_t msg_max;
 	size_t msg_cnt;
 	int linkoff;
 	int nonblock;
-	void *head1;     
-	void *head2;    
+	void *head1;
+	void *head2;
 	void **get_head;
 	void **put_head;
 	void **put_tail;

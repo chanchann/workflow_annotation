@@ -46,6 +46,13 @@
 #define POLLER_EVENTS_MAX		256
 #define POLLER_NODE_ERROR		((struct __poller_node *)-1)
 
+
+/**
+ * @brief 为了性能考虑我们的poller_node是一个以fd为下标的数组，而每个node只能关注一种事件，READ或WRITE。
+ * todo: 这个数组在哪体现？？
+ * 对于一个fd，在poller里是单工的。如果需要全双工，方法是通过系统调用dup()产生一个新的fd再加进来。
+ * 
+ */
 struct __poller_node
 {
 	int state;    
@@ -164,6 +171,8 @@ typedef struct epoll_event __poller_event_t;
 static inline int __poller_wait(__poller_event_t *events, int maxevents,
 								poller_t *poller)
 {
+	// int epoll_wait(int epfd, struct epoll_event *events, int maxevents, int timeout);
+	// Specifying a timeout of -1 causes epoll_wait() to block indefinitely
 	return epoll_wait(poller->pfd, events, maxevents, -1);
 }
 
@@ -1010,6 +1019,8 @@ static void *__poller_thread_routine(void *arg)
 	while (1)
 	{
 		__poller_set_timer(poller);
+		//  __poller_wait 调用在linux下是通过 epoll_wait 来检测 fd 发生的事件。
+		// nevents 是返回的事件，fd及其事件信息被保存在 events 这个 epoll_event 结构体数组中
 		nevents = __poller_wait(events, POLLER_EVENTS_MAX, poller);
 		clock_gettime(CLOCK_MONOTONIC, &time_node.timeout);
 		has_pipe_event = 0;
@@ -1024,12 +1035,23 @@ static void *__poller_thread_routine(void *arg)
 			// 这里判断if (node>1)，是因为大多数情况下，都是正常的网络事件，于是只需判断一次，就能进入处理逻辑了
 			if (node > (struct __poller_node *)1)  
 			{
+				// 一般我们用epoll_event.events 是操作系统告诉本程序该fd当前发生的事件类型。
+				// 但是下面判断 fd 发生的事件类型是通过 node->data.operation 来判断的。
+				// 为了性能考虑我们的poller_node是一个以fd为下标的数组，
+				// 而每个node只能关注一种事件，READ或WRITE。
+				// 所有我们需要通过operation来判断调用哪个处理函数，而不能通过event来判断
+
+				// 为了性能考虑我们的poller_node是一个以fd为下标的数组，而每个node只能关注一种事件，READ或WRITE。
+				// 所有我们需要通过operation来判断调用哪个处理函数，而不能通过event来判断。
 				switch (node->data.operation)
 				{
 				case PD_OP_READ:
 					__poller_handle_read(node, poller);
 					break;
 				case PD_OP_WRITE:
+					// 测试中发现，向对等方发送消息均是通过Communicator::send_message_sync中的writev(entry->sockfd, vectors, cnt <= IOV_MAX ? cnt : IOV_MAX)来实现，
+					// 那此处中的__poller_handle_write的功能是？
+					// A : 消息一次发得出去，就不走异步写了。这样子快。试个大一点的消息，就会进poller了。
 					__poller_handle_write(node, poller);
 					break;
 				case PD_OP_LISTEN:
@@ -1048,9 +1070,11 @@ static void *__poller_thread_routine(void *arg)
 					__poller_handle_ssl_shutdown(node, poller);
 					break;
 				case PD_OP_EVENT:
+					// event其实是linux的eventfd。
 					__poller_handle_event(node, poller);
 					break;
 				case PD_OP_NOTIFY:
+					// notify忽略，只有mac下的异步文件IO才使用到的。
 					__poller_handle_notify(node, poller);
 					break;
 				}
@@ -1187,6 +1211,11 @@ poller_t *poller_create(const struct poller_params *params)
 	return NULL;
 }
 
+/**
+ * @brief 销毁停止状态的poller。运行中的poller直接destroy的话，行为无定义。
+ * 
+ * @param poller 
+ */
 void poller_destroy(poller_t *poller)
 {
 	pthread_mutex_destroy(&poller->mutex);
@@ -1307,6 +1336,18 @@ static int __poller_data_get_event(int *event, const struct poller_data *data)
 	}
 }
 
+/**
+ * @brief poller_add向poller里添加一个fd，fd必须是nonblocking的，否则可能堵死内部线程。
+ * fd的操作由struct poller_data的operation决定。
+ * 
+ * @param data 
+ * @param timeout t表示毫秒级的超时（-1表示无限，同epoll风格）。
+ * 					达到这个超时时间，fd以ERROR状态从callback返回，错误码（struct poller_result里的error）为ETIMEDOUT。
+ * @param poller 
+ * @return int 返回0表示添加成功，-1表示失败。
+ * 			同一个fd如果添加两次，那么第二次添加返回-1，而且errno==EEXIST。
+ * 			因此，如果需要在同一个poller里同时添加一个fd的读与写，需要通过dup()系统调用产生一个复制再添加。
+ */
 int poller_add(const struct poller_data *data, int timeout, poller_t *poller)
 {
 	struct __poller_node *res = NULL;
@@ -1372,6 +1413,14 @@ int poller_add(const struct poller_data *data, int timeout, poller_t *poller)
 	return -1;
 }
 
+/**
+ * @brief 删除一个fd。
+ * 
+ * @param fd 
+ * @param poller 
+ * @return int 返回0表示成果，返回-1表示失败。如果fd不存在，返回-1且errno==ENOENT。
+ * 			当poller_del返回0，这个fd必然以DELETED状态从callback里返回。
+ */
 int poller_del(int fd, poller_t *poller)
 {
 	struct __poller_node *node;
@@ -1500,6 +1549,14 @@ int poller_mod(const struct poller_data *data, int timeout, poller_t *poller)
 	return -1;
 }
 
+/**
+ * @brief 重新设置fd的超时
+ * 
+ * @param fd 
+ * @param timeout timeout定义与poller_add一样
+ * @param poller 
+ * @return int 返回0表示成功，返回-1表示失败。返回-1且errno==ENOENT时，表示fd不存在。
+ */
 int poller_set_timeout(int fd, int timeout, poller_t *poller)
 {
 	struct __poller_node time_node;
@@ -1572,6 +1629,13 @@ int poller_add_timer(const struct timespec *value, void *context,
 	return -1;
 }
 
+/**
+ * @brief 停止poller
+ * 当poller被停止时，所有处理中的fd以STOPPED状态从callback里返回。
+ * poller停止之后，可以重新start。
+ * start与stop显然必须串行依次调用。否则行为无定义。
+ * @param poller 
+ */
 void poller_stop(poller_t *poller)
 {
 	struct __poller_node *node;
