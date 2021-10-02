@@ -92,7 +92,7 @@ void msgqueue_put(void *msg, msgqueue_t *queue)
 	while (queue->msg_cnt > queue->msg_max - 1 && !queue->nonblock)
 		pthread_cond_wait(&queue->put_cond, &queue->put_mutex);
 
-	*queue->put_tail = link;
+	*queue->put_tail = link;   
 	queue->put_tail = link;
 	queue->msg_cnt++;
 	pthread_mutex_unlock(&queue->put_mutex);

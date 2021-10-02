@@ -23,8 +23,6 @@ perl calltree.pl '(?i)msgqueue' '' 1 1 2
     └── Communicator::deinit  [vim src/kernel/Communicator.cc +1380]
 ```
 
-我们还是先来看看msgqueue的接口
-
 ```cpp
 msgqueue_t *msgqueue_create(size_t maxlen, int linkoff);
 void msgqueue_put(void *msg, msgqueue_t *queue);
@@ -34,9 +32,13 @@ void msgqueue_set_block(msgqueue_t *queue);
 void msgqueue_destroy(msgqueue_t *queue);
 ```
 
+作为一个生产者消费者模型，我们最为核心的两个接口就是msgqueue_put和msgqueue_get。
+
+我们重点讲解这两个接口及其在wf中是如何使用的
+
 ## 一个小demo
 
-
+https://github.com/chanchann/workflow_annotation/blob/main/demos/25_msgque/25_msgque.cc
 
 ```cpp
 int main()
@@ -52,8 +54,7 @@ int main()
 }
 ```
 
-
-## msgqueue_create
+## msgqueue_create - 先初始化(需要注意linkoff)
 
 我们上一节看到的 create_poller
 
@@ -116,6 +117,93 @@ struct __msgqueue
 	pthread_cond_t get_cond;
 	pthread_cond_t put_cond;
 };
+```
+
+## msgqueue_put, put - 生产者
+
+只在一处出现，就是把epoll收到的消息队列加入到消息队列中
+
+```cpp
+void Communicator::callback(struct poller_result *res, void *context)
+{
+	Communicator *comm = (Communicator *)context;
+	msgqueue_put(res, comm->queue);
+}
+```
+
+```cpp
+void msgqueue_put(void *msg, msgqueue_t *queue)
+{
+	void **link = (void **)((char *)msg + queue->linkoff);
+
+	*link = NULL;
+
+	pthread_mutex_lock(&queue->put_mutex);
+
+	while (queue->msg_cnt > queue->msg_max - 1 && !queue->nonblock)
+		pthread_cond_wait(&queue->put_cond, &queue->put_mutex);
+
+	*queue->put_tail = link;
+	queue->put_tail = link;
+
+	queue->msg_cnt++;
+	pthread_mutex_unlock(&queue->put_mutex);
+
+	pthread_cond_signal(&queue->get_cond);
+}
+```
+
+这个函数就是把msg添加到了queue后面串起来
+
+如果消息数量大于最大或者queue不是非阻塞，那么就wait。
+
+## msgqueue_get - get ：消费者
+
+只出现在一处
+
+```cpp
+void Communicator::handler_thread_routine(void *context)
+{
+	...
+	while ((res = (struct poller_result *)msgqueue_get(comm->queue)) != NULL)
+	{
+		switch (res->data.operation)
+		{
+		case PD_OP_READ:
+			comm->handle_read_result(res);
+			break;
+		...
+		}
+	}
+}
+```
+
+msqqueue是epoll消息回来之后，以网络线程作为生产者往queue里放(上面`msgqueue_put(res, comm->queue);`)
+
+执行线程作为消费者从queue里拿数据，从而做到线程互不干扰
+
+```cpp
+
+void *msgqueue_get(msgqueue_t *queue)
+{	
+	...
+	pthread_mutex_lock(&queue->get_mutex);
+
+	if (*queue->get_head || __msgqueue_swap(queue) > 0)
+	{
+		msg = (char *)*queue->get_head - queue->linkoff;
+		*queue->get_head = *(void **)*queue->get_head;
+	}
+	else
+	{
+		msg = NULL;
+		errno = ENOENT;
+	}
+
+	pthread_mutex_unlock(&queue->get_mutex);
+	return msg;
+}
+
 ```
 
 

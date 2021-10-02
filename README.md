@@ -665,7 +665,7 @@ void msgqueue_put(void *msg, msgqueue_t *queue)
 
 首先这里void* 不能加减运算，但char* 可以
 
-这里就是一个queue，把msg传到queue的结尾
+这里就是一个queue，把msg串到queue的结尾
 
 
 ```
@@ -683,13 +683,9 @@ msg            link = msg + linkoff
 
 ```
 
-sizeof(msg) 跟 msg分配的大小可能不一样
+msqqueue是epoll消息回来之后，以网络线程作为生产者往queue里放、执行线程作为消费者从queue里拿数据，从而做到线程互不干扰
 
-这是一种C的技巧，一个struct malloc的时候，分配大一点，size = sizeof(struct) + buffer，这样就可以避免两次内存分配，就是代码可读性变得难了不少
-
-这技巧C用的挺多的，C++直接可以用继承，也就没必要用
-
-msqqueue是epoll消息回来之后，以网络线程作为生产者往queue里放、执行线程作为消费者从queue里拿数据，从而做到线程互不干扰,用了锁，但是没内存拷贝(append还是拷贝了，无法避免)
+用了锁，但是没内存拷贝(append还是拷贝了，无法避免)
 
 ```cpp
 // src/kernel/Communicator.h
@@ -704,11 +700,11 @@ msg其实是struct poller_result
 
 这个队列是可以换别的，比如workstealing，或者不切队列直接调起（muduo默认的调起functor也是不切
 
-communicator层是完整收完一个协议级别的消息的，poller是每次的收发
+**communicator层是完整收完一个协议级别的消息的，poller是每次的收发**
 
 57. 在谈msgqueue
 
-msg头部偏移linkoff字节，是链表指针的位置。使用者需要留好空间。这样我们就无需再malloc和free了
+**msg头部偏移linkoff字节，是链表指针的位置。使用者需要留好空间。这样我们就无需再malloc和free了**
 
 1)msgqueue(消息队列)和任务队列(list封装的)大概的功能是什么那？二者大概是如何配合使用的?
 
