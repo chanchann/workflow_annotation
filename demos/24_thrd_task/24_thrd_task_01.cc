@@ -1,9 +1,11 @@
 #include <iostream>
 #include <workflow/WFTaskFactory.h>
 #include <workflow/WFFacilities.h>
-#include <spdlog/spdlog.h>
+// #include <spdlog/spdlog.h>
 #include <signal.h>
 #include <errno.h>
+
+#include <workflow/logger.h>  // 本版本为了观察内部log而增加，非原生wf组件，请将相关log更换为fprintf
 
 // 直接定义thread_task三要素
 
@@ -23,6 +25,7 @@ struct AddOutput
 // 加法流程
 void add_routine(const AddInput *input, AddOutput *output)
 {
+	LOG_TRACE("add_routine");
     output->res = input->x + input->y;
 }
 
@@ -34,11 +37,15 @@ void callback(AddTask *task)
 	auto *output = task->get_output();
 
 	assert(task->get_state() == WFT_STATE_SUCCESS);
-    spdlog::info("{} + {} = {}", input->x, input->y, output->res);
+	LOG_INFO("%d + %d = %d", input->x, input->y, output->res);
+    // spdlog::info("{} + {} = {}", input->x, input->y, output->res);
 }
 
 int main()
 {
+	logger_initConsoleLogger(stderr);
+	logger_setLevel(LogLevel_TRACE);
+
     using AddFactory = WFThreadTaskFactory<AddInput, AddOutput>;
 	AddTask *task = AddFactory::create_thread_task("add_task",
 												add_routine,

@@ -22,7 +22,7 @@
 #include <string.h>
 #include "list.h"
 #include "thrdpool.h"
-
+#include "logger.h"
 struct __thrdpool
 {
 	struct list_head task_queue;
@@ -51,6 +51,7 @@ static pthread_t __zero_tid;
  */
 static void *__thrdpool_routine(void *arg)
 {
+	LOG_TRACE("__thrdpool_routine");
 	thrdpool_t *pool = (thrdpool_t *)arg;
 	struct list_head **pos = &pool->task_queue.next;  // 第一个任务
 	/*
@@ -218,6 +219,7 @@ static int __thrdpool_create_threads(size_t nthreads, thrdpool_t *pool)
  */
 thrdpool_t *thrdpool_create(size_t nthreads, size_t stacksize)
 {
+	LOG_TRACE("thrdpool_create");
 	thrdpool_t *pool;
 	int ret;
 	// 1. 分配
@@ -263,12 +265,15 @@ thrdpool_t *thrdpool_create(size_t nthreads, size_t stacksize)
 inline void __thrdpool_schedule(const struct thrdpool_task *task, void *buf,
 								thrdpool_t *pool)
 {
+	LOG_TRACE("__thrdpool_schedule");
 	struct __thrdpool_task_entry *entry = (struct __thrdpool_task_entry *)buf;
 
 	entry->task = *task;
 	pthread_mutex_lock(&pool->mutex);
 
+	// 把任务队列的任务放入线程池中
 	list_add_tail(&entry->list, &pool->task_queue);
+
 	pthread_cond_signal(&pool->cond);
 
 	pthread_mutex_unlock(&pool->mutex);
@@ -281,9 +286,11 @@ inline void __thrdpool_schedule(const struct thrdpool_task *task, void *buf,
  * @param  *pool: 
  * @retval 
  */
-// todo: 为什么要这样要这样再封一层呢，难道就是我了隐藏__thrdpool_schedule这个函数的功能？
 int thrdpool_schedule(const struct thrdpool_task *task, thrdpool_t *pool)
 {
+	// 这是第一次调用，我们分配buf(entry)，后面我们都不需要再次malloc
+	// 靠entry->task = *task 来复用entry了
+	LOG_TRACE("thrdpool_schedule");
 	void *buf = malloc(sizeof (struct __thrdpool_task_entry));
 
 	if (buf)

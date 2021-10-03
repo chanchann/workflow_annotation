@@ -2,6 +2,16 @@
 
 workflow中文注释 / demo / 问题解答
 
+## 预先声明
+
+demos 中
+
+```cpp
+#include <workflow/logger.h>
+```
+
+并非原生workflow所有，本版本添加上日志，方便学习观察流程
+
 ## 总结一下平时水群的问题
 
 1. 自定义协议server/client ssl
@@ -646,77 +656,17 @@ errno是系统用的，或者workflow框架用来标记系统的错误；
 
 linux下为例子，是使用epoll的，收到数据并切下消息就会触发process。
 
-56. msgqueue_put
-
-```cpp
-/src/kernel/msgqueue.c
-
-void msgqueue_put(void *msg, msgqueue_t *queue)
-{
-	void **link = (void **)((char *)msg + queue->linkoff);
-
-	*link = NULL;
-	pthread_mutex_lock(&queue->put_mutex);
-
-    ...
-}
-
-```
-
-首先这里void* 不能加减运算，但char* 可以
-
-这里就是一个queue，把msg串到queue的结尾
-
-
-```
-*link = NULL 这是 node->next = NULL的意思
-
----------------------
-|                   |
-msg            link = msg + linkoff
-
-*link = NULL  后
-
----------------------  nullptr
-|                   |
-msg            link = msg + linkoff
-
-```
-
-msqqueue是epoll消息回来之后，以网络线程作为生产者往queue里放、执行线程作为消费者从queue里拿数据，从而做到线程互不干扰
-
-用了锁，但是没内存拷贝(append还是拷贝了，无法避免)
-
-```cpp
-// src/kernel/Communicator.h
-void Communicator::callback(struct poller_result *res, void *context)
-{
-	Communicator *comm = (Communicator *)context;
-	msgqueue_put(res, comm->queue);
-}
-```
-
-msg其实是struct poller_result
-
-这个队列是可以换别的，比如workstealing，或者不切队列直接调起（muduo默认的调起functor也是不切
-
-**communicator层是完整收完一个协议级别的消息的，poller是每次的收发**
-
-57. 在谈msgqueue
-
-**msg头部偏移linkoff字节，是链表指针的位置。使用者需要留好空间。这样我们就无需再malloc和free了**
-
-1)msgqueue(消息队列)和任务队列(list封装的)大概的功能是什么那？二者大概是如何配合使用的?
+56. msgqueue
 
 https://github.com/sogou/workflow/issues/162
 
-2)为什么msgquque要自己实现一个?
-
 https://github.com/sogou/workflow/issues/349
 
-3) [BUG] kernel/msgqueue.h -- Not Bug.
-
 https://github.com/sogou/workflow/issues/353
+
+相关解析看src_analysis dir
+
+57. blank
 
 58. 如何看poller相关代码
 
@@ -725,6 +675,8 @@ https://github.com/sogou/workflow/issues/351
 https://github.com/sogou/workflow/issues/297
 
 https://github.com/sogou/workflow/issues/166
+
+相关解析看src_analysis dir
 
 59. 离散内存和zero_copy一些思考
 

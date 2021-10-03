@@ -11,6 +11,7 @@ endif ()
 
 set(SRC
 	${IOSERVICE_FILE}
+	logger.c
 	mpoller.c
 	poller.c
 	rbtree.c

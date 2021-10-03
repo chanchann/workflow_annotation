@@ -34,7 +34,7 @@
 #include "IORequest.h"
 #include "Workflow.h"
 #include "WFConnection.h"
-
+#include "logger.h"
 
 // task->get_state() 
 // state代表任务的结束状态
@@ -95,6 +95,7 @@ public:
 protected:
 	virtual SubTask *done()
 	{
+		LOG_INFO("WFThreadTask done");
 		SeriesWork *series = series_of(this);
 
 		if (this->callback)
@@ -115,6 +116,7 @@ public:
 		ExecRequest(queue, executor),
 		callback(std::move(cb))
 	{
+		LOG_TRACE("WFThreadTask constructor");
 		this->user_data = NULL;
 		this->state = WFT_STATE_UNDEFINED;
 		this->error = 0;

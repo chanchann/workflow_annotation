@@ -9,6 +9,73 @@
 
 这部分主要涉及kernel中的线程池和队列
 
+
+## 先写一个简单的加法运算程序 
+
+https://github.com/chanchann/workflow_annotation/blob/main/demos/24_thrd_task/24_thrd_task_01.cc
+
+```cpp
+#include <iostream>
+#include <workflow/WFTaskFactory.h>
+#include <workflow/WFFacilities.h>
+#include <spdlog/spdlog.h>
+#include <signal.h>
+#include <errno.h>
+
+// 直接定义thread_task三要素
+
+// 定义INPUT
+struct AddInput
+{
+    int x;
+    int y;
+};
+
+// 定义OUTPUT
+struct AddOutput
+{
+    int res;
+};
+
+// 加法流程
+void add_routine(const AddInput *input, AddOutput *output)
+{
+    output->res = input->x + input->y;
+}
+
+using AddTask = WFThreadTask<AddInput, AddOutput>;
+
+void callback(AddTask *task)
+{
+	auto *input = task->get_input();
+	auto *output = task->get_output();
+
+	assert(task->get_state() == WFT_STATE_SUCCESS);
+    spdlog::info("{} + {} = {}", input->x, input->y, output->res);
+}
+
+int main()
+{
+    using AddFactory = WFThreadTaskFactory<AddInput, AddOutput>;
+	AddTask *task = AddFactory::create_thread_task("add_task",
+												add_routine,
+												callback);
+	auto *input = task->get_input();
+
+	input->x = 1;
+	input->y = 2;
+
+	WFFacilities::WaitGroup wait_group(1);
+
+	Workflow::start_series_work(task, [&wait_group](const SeriesWork *) {
+		wait_group.done();
+	});
+
+	wait_group.wait();
+	return 0;
+}
+```
+
 ## thread_task 的使用
 
 首先我们创建一个thread_task 
@@ -147,7 +214,6 @@ Task最终祖先都是SubTask，毋庸置疑，计算任务还具有ExecSession�
 
 3. 两个重要的成员变量ExecQueue, Executor
 
-
 ```cpp
 /src/kernel/ExecRequest.h
 class ExecRequest : public SubTask, public ExecSession
@@ -285,17 +351,15 @@ int Executor::request(ExecSession *session, ExecQueue *queue)
 
 线程池是怎么处理运行的细节我们留到下线程池的章节，我们这里知道他把task交给线程池处理就可。
 
-还有个重要的是
+我们在线程池中进行的回调是
 
 ```cpp
 /src/kernel/Executor.cc
 void Executor::executor_thread_routine(void *context)
 {
-	ExecQueue *queue = (ExecQueue *)context;
-	struct ExecTaskEntry *entry;
-	ExecSession *session;
-
+	...
 	pthread_mutex_lock(&queue->mutex);
+
 	entry = list_entry(queue->task_list.next, struct ExecTaskEntry, list);
 	list_del(&entry->list);
 	session = entry->session;
@@ -311,79 +375,22 @@ void Executor::executor_thread_routine(void *context)
 		free(entry);
 
 	pthread_mutex_unlock(&queue->mutex);
+
 	session->execute();
 	session->handle(ES_STATE_FINISHED, 0);
 }
 ```
 
-## 写一个简单的加法运算程序 
+这个函数就是取出一个任务，执行，并且如果queue不为空，继续去取下一个
 
-https://github.com/chanchann/workflow_annotation/blob/main/demos/24_thrd_task/24_thrd_task_01.cc
+1. 执行此任务
 
 ```cpp
-#include <iostream>
-#include <workflow/WFTaskFactory.h>
-#include <workflow/WFFacilities.h>
-#include <spdlog/spdlog.h>
-#include <signal.h>
-#include <errno.h>
-
-// 直接定义thread_task三要素
-
-// 定义INPUT
-struct AddInput
-{
-    int x;
-    int y;
-};
-
-// 定义OUTPUT
-struct AddOutput
-{
-    int res;
-};
-
-// 加法流程
-void add_routine(const AddInput *input, AddOutput *output)
-{
-    output->res = input->x + input->y;
-}
-
-using AddTask = WFThreadTask<AddInput, AddOutput>;
-
-void callback(AddTask *task)
-{
-	auto *input = task->get_input();
-	auto *output = task->get_output();
-
-	assert(task->get_state() == WFT_STATE_SUCCESS);
-    spdlog::info("{} + {} = {}", input->x, input->y, output->res);
-}
-
-int main()
-{
-    using AddFactory = WFThreadTaskFactory<AddInput, AddOutput>;
-	AddTask *task = AddFactory::create_thread_task("add_task",
-												add_routine,
-												callback);
-	auto *input = task->get_input();
-
-	input->x = 1;
-	input->y = 2;
-
-	WFFacilities::WaitGroup wait_group(1);
-
-	Workflow::start_series_work(task, [&wait_group](const SeriesWork *) {
-		wait_group.done();
-	});
-
-	wait_group.wait();
-	return 0;
-}
+session->execute();
+session->handle(ES_STATE_FINISHED, 0);
 ```
 
-
-
+其中去取queue中下一个去执行
 
 
 

@@ -21,12 +21,14 @@
 
 #include "SubTask.h"
 #include "Executor.h"
+#include "logger.h"
 
 class ExecRequest : public SubTask, public ExecSession
 {
 public:
 	ExecRequest(ExecQueue *queue, Executor *executor)
 	{
+		LOG_TRACE("ExecRequest creator");
 		this->executor = executor;
 		this->queue = queue;
 	}
@@ -37,6 +39,7 @@ public:
 public:
 	virtual void dispatch()
 	{
+		LOG_TRACE("ExecRequest dispatch");
 		if (this->executor->request(this, this->queue) < 0)
 		{
 			this->state = ES_STATE_ERROR;
@@ -56,6 +59,7 @@ protected:
 protected:
 	virtual void handle(int state, int error)
 	{
+		LOG_TRACE("ExecRequest handle");
 		this->state = state;
 		this->error = error;
 		this->subtask_done();

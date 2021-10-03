@@ -43,6 +43,7 @@ inl 文件是内联函数的源文件。 内联函数通常在c++头文件中实
 #include "WFTaskError.h"
 #include "EndpointParams.h"
 #include "WFNameService.h"
+#include "logger.h"
 
 class __WFGoTask : public WFGoTask
 {
@@ -577,6 +578,7 @@ class __WFThreadTask : public WFThreadTask<INPUT, OUTPUT>
 protected:
 	virtual void execute()
 	{
+		LOG_TRACE("__WFThreadTask execute routine");
 		this->routine(&this->input, &this->output);
 	}
 
@@ -590,6 +592,7 @@ public:
 		WFThreadTask<INPUT, OUTPUT>(queue, executor, std::move(cb)),
 		routine(std::move(rt))
 	{
+		LOG_TRACE("__WFThreadTask constructor");
 	}
 };
 
@@ -599,6 +602,7 @@ WFThreadTaskFactory<INPUT, OUTPUT>::create_thread_task(const std::string& queue_
 						std::function<void (INPUT *, OUTPUT *)> routine,
 						std::function<void (WFThreadTask<INPUT, OUTPUT> *)> callback)
 {	
+	LOG_TRACE("create_thread_task");
 	// 隐藏routine
 	return new __WFThreadTask<INPUT, OUTPUT>(WFGlobal::get_exec_queue(queue_name),
 											 WFGlobal::get_compute_executor(),

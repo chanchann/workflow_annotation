@@ -22,7 +22,7 @@
 #include <stddef.h>
 #include <pthread.h>
 #include "list.h"
-
+#include "logger.h"
 
 // 看名字就知道是个执行队列
 class ExecQueue
@@ -36,6 +36,7 @@ private:
 	pthread_mutex_t mutex;
 
 public:
+	ExecQueue() { LOG_TRACE("ExecQueue creator"); }
 	virtual ~ExecQueue() { }
 	friend class Executor;
 };
@@ -57,6 +58,7 @@ private:
 	ExecQueue *queue;  
 
 public:
+	ExecSession() { LOG_TRACE("ExecSession creator"); }
 	virtual ~ExecSession() { }
 	friend class Executor;  // Executor可以直接access这里的private queue
 };
@@ -77,6 +79,7 @@ private:
 	static void executor_cancel_tasks(const struct thrdpool_task *task);
 
 public:
+	Executor() { LOG_TRACE("Executor creator"); }
 	virtual ~Executor() { }
 };
 

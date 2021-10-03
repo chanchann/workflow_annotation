@@ -109,7 +109,7 @@ void msgqueue_put(void *msg, msgqueue_t *queue)
 {
 	// 这里转char* 是因为，void* 不能加减运算，但char* 可以
 	void **link = (void **)((char *)msg + queue->linkoff);
-	/*
+	/*b
 	this->queue = msgqueue_create(4096, sizeof (struct poller_result));
 	初始化的时候把linkoff大小设置成了sizeof (struct poller_result)
 	*/
