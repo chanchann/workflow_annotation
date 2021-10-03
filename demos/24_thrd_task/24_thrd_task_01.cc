@@ -43,7 +43,7 @@ void callback(AddTask *task)
 
 int main()
 {
-	logger_initConsoleLogger(stderr);
+	logger_initConsoleLogger(stdout);
 	logger_setLevel(LogLevel_TRACE);
 
     using AddFactory = WFThreadTaskFactory<AddInput, AddOutput>;

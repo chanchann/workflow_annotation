@@ -1291,6 +1291,7 @@ int Communicator::create_handler_threads(size_t handler_threads)
 	};
 	size_t i;
 
+	LOG_TRACE("create handler thread pool");
 	this->thrdpool = thrdpool_create(handler_threads, 0);
 	if (this->thrdpool)
 	{

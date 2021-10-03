@@ -46,6 +46,7 @@
 #include "WFNameService.h"
 #include "WFDnsResolver.h"
 #include "WFDnsClient.h"
+#include "logger.h"
 
 class __WFGlobal
 {
@@ -463,19 +464,41 @@ public:
 		static __ExecManager kInstance;
 		return &kInstance;
 	}
-
+	/**
+	 * @brief 创建ExecQueue
+	 * 
+	 * @param queue_name 
+	 * @return ExecQueue* 
+	 */
 	ExecQueue *get_exec_queue(const std::string& queue_name)
 	{
 		ExecQueue *queue = NULL;
+		/*
+		关于计算队列名
+		我们的计算任务并没有优化级的概念，唯一可以影响调度顺序的是计算任务的队列名，本示例中队列名为字符串"add"。
+		队列名的指定非常简单，需要说明以下几点：
 
+		1. 队列名是一个静态字符串，不可以无限产生新的队列名。例如不可以根据请求id来产生队列名，因为内部会为每个队列分配一小块资源。
+		当计算线程没有被100%占满，所有任务都是实时调起，队列名没有任何影响。
+
+		2. 如果一个服务流程里有多个计算步骤，穿插在多个网络通信之间，可以简单的给每种计算步骤起一个名字，这个会比整体用一个名字要好。
+		
+		3.如果所有计算任务用同一个名字，那么所有任务的被调度的顺序与提交顺序一致，在某些场景下会影响平均响应时间。
+		
+		4. 每种计算任务有一个独立名字，那么相当于每种任务之间是公平调度的，而同一种任务内部是顺序调度的，实践效果更好。
+		
+		总之，除非机器的计算负载已经非常繁重，否则没有必要特别关心队列名，只要每种任务起一个名字就可以了。
+		*/
 		pthread_rwlock_rdlock(&rwlock_);
-		const auto iter = queue_map_.find(queue_name);
 
+		const auto iter = queue_map_.find(queue_name);
+		// 先查找队列名
 		if (iter != queue_map_.cend())
 			queue = iter->second;
 
 		pthread_rwlock_unlock(&rwlock_);
 
+		// 如果还没有此队列名，那么new一个, 并初始化
 		if (!queue)
 		{
 			queue = new ExecQueue();
@@ -487,6 +510,7 @@ public:
 			else
 			{
 				pthread_rwlock_wrlock(&rwlock_);
+				// 存起来
 				const auto ret = queue_map_.emplace(queue_name, queue);
 
 				if (!ret.second)
@@ -509,6 +533,7 @@ private:
 	__ExecManager():
 		rwlock_(PTHREAD_RWLOCK_INITIALIZER)
 	{
+		LOG_TRACE("__ExecManager creator");
 		int compute_threads = __WFGlobal::get_instance()->
 										  get_global_settings()->
 										  compute_threads;

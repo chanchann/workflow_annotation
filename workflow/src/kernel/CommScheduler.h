@@ -24,6 +24,7 @@
 #include <pthread.h>
 #include <openssl/ssl.h>
 #include "Communicator.h"
+#include "logger.h"
 
 class CommSchedObject
 {
@@ -114,6 +115,7 @@ class CommScheduler
 public:
 	int init(size_t poller_threads, size_t handler_threads)
 	{
+		LOG_TRACE("CommScheduler::init");
 		return this->comm.init(poller_threads, handler_threads);
 	}
 

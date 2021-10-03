@@ -219,7 +219,6 @@ static int __thrdpool_create_threads(size_t nthreads, thrdpool_t *pool)
  */
 thrdpool_t *thrdpool_create(size_t nthreads, size_t stacksize)
 {
-	LOG_TRACE("thrdpool_create");
 	thrdpool_t *pool;
 	int ret;
 	// 1. 分配
@@ -272,6 +271,7 @@ inline void __thrdpool_schedule(const struct thrdpool_task *task, void *buf,
 	pthread_mutex_lock(&pool->mutex);
 
 	// 把任务队列的任务放入线程池中
+	LOG_TRACE("add entry list to pool task Queue");
 	list_add_tail(&entry->list, &pool->task_queue);
 
 	pthread_cond_signal(&pool->cond);

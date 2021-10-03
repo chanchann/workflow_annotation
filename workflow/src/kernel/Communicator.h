@@ -28,6 +28,7 @@
 #include <openssl/ssl.h>
 #include "list.h"
 #include "poller.h"
+#include "logger.h"
 
 class CommConnection
 {

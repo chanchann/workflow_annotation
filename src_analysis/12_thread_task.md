@@ -129,6 +129,10 @@ WFThreadTaskFactory<INPUT, OUTPUT>::create_thread_task(const std::string& queue_
 
 这里可以看到，其实就是 new 一个 __WFThreadTask
 
+在此处，创建了ExecQueue 和 Executor，而且由于`WFGlobal::`, 所以由单例`__ExecManager`来管控
+
+下面会详细讲述
+
 ### __WFThreadTask
 
 其中最为核心的就在两点，一个是继承自WFThreadTask，一个就是最为核心的成员变量routine。
@@ -271,6 +275,26 @@ private:
 
 ### 其中两个重要成员: ExecQueue, Executor
 
+两者都在创建__WFThreadTask的时候创建。
+
+```cpp
+template<class INPUT, class OUTPUT>
+WFThreadTask<INPUT, OUTPUT> *
+WFThreadTaskFactory<INPUT, OUTPUT>::create_thread_task(const std::string& queue_name,
+						std::function<void (INPUT *, OUTPUT *)> routine,
+						std::function<void (WFThreadTask<INPUT, OUTPUT> *)> callback)
+{
+	return new __WFThreadTask<INPUT, OUTPUT>(WFGlobal::get_exec_queue(queue_name),
+											 WFGlobal::get_compute_executor(),
+											 std::move(routine),
+											 std::move(callback));
+}
+```
+
+### ExecQueue
+
+我们先看看ExecQueue的结构
+
 ```cpp
 /src/kernel/Executor.h
 class ExecQueue
@@ -283,6 +307,74 @@ private:
 ```
 
 顾名思义，就是一个执行队列
+
+我们来看看他的创建过程
+
+```cpp
+ExecQueue *get_exec_queue(const std::string& queue_name)
+{
+	pthread_rwlock_rdlock(&rwlock_);
+	const auto iter = queue_map_.find(queue_name);
+
+	if (iter != queue_map_.cend())
+		queue = iter->second;
+
+	pthread_rwlock_unlock(&rwlock_);
+
+	if (!queue)
+	{
+		queue = new ExecQueue();  
+		queue->init();
+
+		pthread_rwlock_wrlock(&rwlock_);
+		
+		const auto ret = queue_map_.emplace(queue_name, queue);s
+		...
+		pthread_rwlock_unlock(&rwlock_);
+}
+```
+
+### Executor
+
+我们看看Executor的创建过程
+
+```cpp
+/src/kernel/WFGlobal.cc
+class __ExecManager
+{
+	Executor *get_compute_executor() { return &compute_executor_; }
+
+private:
+	__ExecManager():
+		rwlock_(PTHREAD_RWLOCK_INITIALIZER)
+	{
+		int compute_threads = __WFGlobal::get_instance()->
+										  get_global_settings()->
+										  compute_threads;
+		compute_executor_.init(compute_threads);
+		...
+	}
+
+private:
+	...
+	Executor compute_executor_;
+};
+
+```
+
+Executor与__ExecManager是组合关系，是全局唯一，声明周期相同
+
+```cpp
+int Executor::init(size_t nthreads)
+{
+	this->thrdpool = thrdpool_create(nthreads, 0);	
+	...
+}
+```
+
+init知道Executor就是个计算线程池
+
+我们再看看Executor的结构
 
 ```cpp
 /src/kernel/Executor.h
@@ -302,7 +394,7 @@ private:
 };
 ```
 
-而Executor看成员，就知道是个线程池。
+而Executor看成员，也知道是个线程池。
 
 其中最为重要的就是request 和 executor_thread_routine
 
@@ -316,6 +408,8 @@ struct ExecTaskEntry
 	thrdpool_t *thrdpool;
 };
 ```
+
+其中的session就是执行execute的实体,__WFThreadTask->execute();
 
 ```cpp
 /src/kernel/Executor.cc

@@ -33,7 +33,7 @@
 #include "EndpointParams.h"
 #include "WFNameService.h"
 #include "WFDnsResolver.h"
-
+#include "logger.h"
 /**
  * @file    WFGlobal.h
  * @brief   Workflow Global Settings & Workflow Global APIs

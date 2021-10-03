@@ -69,7 +69,7 @@ int Executor::init(size_t nthreads)
 		errno = EINVAL;
 		return -1;
 	}
-
+	LOG_TRACE("Calculate thread pool create");
 	this->thrdpool = thrdpool_create(nthreads, 0);
 	if (this->thrdpool)
 		return 0;
@@ -155,7 +155,8 @@ int Executor::request(ExecSession *session, ExecQueue *queue)
 		pthread_mutex_lock(&queue->mutex);
 
 		list_add_tail(&entry->list, &queue->task_list);  // task加入执行队列中
-
+		LOG_TRACE("add task to task_list");
+		
 		if (queue->task_list.next == &entry->list)    
 		// 如果这是第一个任务，需要去thrdpool_schedule(第一次调用需要malloc buf(entry(struct __thrdpool_task_entry)))
 		// 后面就复用entry(struct __thrdpool_task_entry)了
