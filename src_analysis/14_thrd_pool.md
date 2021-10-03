@@ -1,6 +1,8 @@
 #! https://zhuanlan.zhihu.com/p/416183766
 # workflow 源码解析 05 : ThreadPool00 introduction
 
+更加详细的源码注释可看 : https://github.com/chanchann/workflow_annotation
+
 ## 先看接口
 
 接口非常简洁

@@ -56,8 +56,10 @@ void msgqueue_set_nonblock(msgqueue_t *queue)
 {
 	queue->nonblock = 1;
 	pthread_mutex_lock(&queue->put_mutex);
+
 	pthread_cond_signal(&queue->get_cond);
 	pthread_cond_broadcast(&queue->put_cond);
+	
 	pthread_mutex_unlock(&queue->put_mutex);
 }
 
@@ -80,8 +82,7 @@ static size_t __msgqueue_swap(msgqueue_t *queue)
 		pthread_cond_wait(&queue->get_cond, &queue->put_mutex);
 
 	cnt = queue->msg_cnt;  
-	// 如果cnt大于最大接收的msg，那么通知put
-	// todo : why do this?
+	// 如果cnt大于最大接收的msg，那么通知put，因为大于msg_max put_list wait在那里了，所以swap清空了就要唤醒生产者put
 	if (cnt > queue->msg_max - 1)
 		pthread_cond_broadcast(&queue->put_cond);
 
@@ -89,7 +90,9 @@ static size_t __msgqueue_swap(msgqueue_t *queue)
 	queue->put_tail = get_head;
 
 	// put_list清0了
-	queue->msg_cnt = 0;     // todo : 此处为何设置为0
+	// 收到put消息是queue->msg_cnt++, 并没有拿走消息queue->msg_cnt--;
+	// 靠的就是put_list swap 到 get_list 就清0了
+	queue->msg_cnt = 0;    
 
 	pthread_mutex_unlock(&queue->put_mutex);
 	return cnt;
@@ -116,7 +119,7 @@ void msgqueue_put(void *msg, msgqueue_t *queue)
 
 	pthread_mutex_lock(&queue->put_mutex);
 	
-	// 当收到的cnt大于最大限制 且 阻塞mode， 那么wait在这
+	// 当收到的cnt大于最大限制 且 阻塞mode(default)， 那么wait在这, 等待消费者去给消费了
 	while (queue->msg_cnt > queue->msg_max - 1 && !queue->nonblock)
 		pthread_cond_wait(&queue->put_cond, &queue->put_mutex);
 
@@ -139,8 +142,16 @@ void *msgqueue_get(msgqueue_t *queue)
 	// 若get_list无消息了，那么看看put_list有没有，如果有，swap一下即可
 	if (*queue->get_head || __msgqueue_swap(queue) > 0)
 	{
-		
+		// *queue->get_head 是第一个
+		// 转换为(char *)可做加减法
+		// 其中保留了linkoff这么大的空间
+		// this->queue = msgqueue_create(4096, sizeof (struct poller_result));
+		// 初始化的时候把linkoff大小设置成了sizeof (struct poller_result)
+		// 退回后就是msg的起始位置了
 		msg = (char *)*queue->get_head - queue->linkoff;
+		// *queue->get_head就是第一个元素
+		// *(void **)*queue->get_head 就是第一个元素指向的下一个元素
+		// 第一个元素移动过来
 		*queue->get_head = *(void **)*queue->get_head;
 	}
 	else

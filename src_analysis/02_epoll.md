@@ -1,6 +1,8 @@
 #! https://zhuanlan.zhihu.com/p/415072416
 # workflow 源码解析 02 : epoll 2
 
+更加详细的源码注释可看 : https://github.com/chanchann/workflow_annotation
+
 calltree.pl '(?i)epoll' '' 1 1 4
 
 ```

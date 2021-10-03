@@ -2,7 +2,7 @@
 
 分析改动 : https://github.com/sogou/workflow/commit/a6b8a2cde33a1319c0fa731c86e8849fd108fb5b
 
-源码注释可看 : https://github.com/chanchann/workflow_annotation
+更加详细的源码注释可看 : https://github.com/chanchann/workflow_annotation
 
 ```
 ; perl calltree.pl 'message_out' '' 1 1 2

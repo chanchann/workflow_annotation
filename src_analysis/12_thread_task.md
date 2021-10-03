@@ -1,6 +1,8 @@
 #! https://zhuanlan.zhihu.com/p/415833220
 # workflow 源码解析 04 : ThreadTask
 
+更加详细的源码注释可看 : https://github.com/chanchann/workflow_annotation
+
 我们先读源码可以先从thread task入手，相对而言比较容易理解（因为不涉及网络相关的内容）
 
 最主要的是了解workflow中“任务”到底是什么（透露一下，在SubTask.h中定义 
