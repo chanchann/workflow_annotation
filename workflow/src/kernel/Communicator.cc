@@ -515,6 +515,7 @@ int Communicator::send_message_async(struct iovec vectors[], int cnt,
 
 int Communicator::send_message(struct CommConnEntry *entry)
 {
+	LOG_TRACE("Communicator::send_message");
 	struct iovec vectors[ENCODE_IOV_MAX];
 	struct iovec *end;
 	int cnt;
@@ -1454,14 +1455,23 @@ struct CommConnEntry *Communicator::launch_conn(CommSession *session,
 	return NULL;
 }
 
+/**
+ * @brief 获取空闲连接
+ * 
+ * @param target 
+ * @return struct CommConnEntry* 
+ */
 struct CommConnEntry *Communicator::get_idle_conn(CommTarget *target)
 {
+	LOG_TRACE("Communicator::get_idle_conn");
 	struct CommConnEntry *entry;
 	struct list_head *pos;
 
+	// 遍历target的idle_list 获取空闲连接
 	list_for_each(pos, &target->idle_list)
 	{
 		entry = list_entry(pos, struct CommConnEntry, list);
+		// 重新设置超时时间，成功
 		if (mpoller_set_timeout(entry->sockfd, -1, this->mpoller) >= 0)
 		{
 			list_del(pos);
@@ -1476,11 +1486,14 @@ struct CommConnEntry *Communicator::get_idle_conn(CommTarget *target)
 // 优先复用connection
 int Communicator::request_idle_conn(CommSession *session, CommTarget *target)
 {
+	LOG_TRACE("Communicator::request_idle_conn");
 	struct CommConnEntry *entry;
 	int ret = -1;
 
 	pthread_mutex_lock(&target->mutex);
+
 	entry = this->get_idle_conn(target);
+
 	if (entry)
 		pthread_mutex_lock(&entry->mutex);
 	pthread_mutex_unlock(&target->mutex);
@@ -1489,7 +1502,7 @@ int Communicator::request_idle_conn(CommSession *session, CommTarget *target)
 		entry->session = session;
 		session->conn = entry->conn;
 		session->seq = entry->seq++;
-		session->out = session->message_out();
+		session->out = session->message_out(); // WFClientTask
 		if (session->out)
 			ret = this->send_message(entry);
 

@@ -306,9 +306,10 @@ void CommSchedGroup::heap_remove(int index)
 
 int CommSchedGroup::init()
 {
+	// 默认大小为4个
 	size_t size = COMMGROUP_INIT_SIZE * sizeof (void *);
 	int ret;
-
+	// 分配空间+初始化
 	this->tg_heap = (CommSchedTarget **)malloc(size);
 	if (this->tg_heap)
 	{

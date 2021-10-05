@@ -158,9 +158,11 @@ private:
 
 ```
 
-需要注意的是SubTask要求用户实现两个接口，dispatch和done。
+这一层实现了应用层client该有的功能
 
-而我们在WFComplexClientTask中实现。其中我们first->dispatch()调用的就是这个地方
+最为核心的的是SubTask要求用户实现两个接口，dispatch和done, 在WFComplexClientTask中实现。
+
+我们first->dispatch()调用的就是这个地方
 
 ```cpp
 template<class REQ, class RESP, typename CTX>
@@ -168,17 +170,16 @@ void WFComplexClientTask<REQ, RESP, CTX>::dispatch()
 {
 	switch (this->state)
 	{
-	case WFT_STATE_UNDEFINED:  // 这个状态走了
-		if (this->check_request())  // 这里直接return true
+	case WFT_STATE_UNDEFINED:  
+		if (this->check_request())  
 		{
-			if (this->route_result_.request_object)  // 这里是NULL
+			if (this->route_result_.request_object)  
 			{
 	case WFT_STATE_SUCCESS:
 				this->set_request_object(route_result_.request_object);
 				this->WFClientTask<REQ, RESP>::dispatch();
 				return;
 			}
-            // 所以直接过来了，产生route做dns解析
 			router_task_ = this->route();
 			series_of(this)->push_front(this);
 			series_of(this)->push_front(router_task_);
@@ -192,9 +193,13 @@ void WFComplexClientTask<REQ, RESP, CTX>::dispatch()
 }
 ```
 
-我们知道了怎么插入dns解析之一部分
+我们知道了怎么插入dns解析这一部分
 
 但是dns部分我们忽略，等到dns章节解析时候再来详细分析,
+
+这一部分看似简单，其实很复杂
+
+调用图可见此
 
 ![pic](https://github.com/chanchann/workflow_annotation/blob/main/src_analysis/pics/http01.png?raw=true)
 
@@ -238,6 +243,14 @@ workflow/src/kernel/thrdpool.c:72
 
 ## CommRequest::dispatch 组成
 
+我们dns解析完后，
+
+```cpp
+this->WFClientTask<REQ, RESP>::dispatch();
+```
+
+走到此处，实际上调用
+
 ```cpp
 void CommRequest::dispatch()
 {
@@ -255,7 +268,7 @@ void CommRequest::dispatch()
 
 说明CommRequest是一个SubTask，又满足CommSession的特性
 
-CommSession是一次req->resp的交互，主要要实现message_in(), message_out()等几个虚函数，让核心知道怎么产生消息。
+CommSession是一次req->resp的交互，主要要实现message_in(), message_out()等几个虚函数，让核心知道怎么收发消息
 
 ```cpp
 class CommRequest : public SubTask, public CommSession
@@ -265,37 +278,27 @@ class CommRequest : public SubTask, public CommSession
 
 看名字像是调度器
 
-## 我们这里有个疑问了，这个CommRequest，scheduler 是什么时候构造出来的呢？
-
-唯一的入口在构造WFNetworkTask的时候
-
-```
-// perl calltree.pl "CommRequest" "" 1 1 2
-
-CommRequest
-└── WFNetworkTask     [vim src/factory/WFTask.h +326]
-```
+## 这个CommRequest，scheduler 是什么时候构造出来的呢？
 
 ```cpp
-// src/factory/WFTask.h
-WFNetworkTask(CommSchedObject *object, CommScheduler *scheduler,
-				std::function<void (WFNetworkTask<REQ, RESP> *)>&& cb) :
-	CommRequest(object, scheduler),
-	callback(std::move(cb))
+WFComplexClientTask(int retry_max, task_callback_t&& cb):
+	WFClientTask<REQ, RESP>(NULL, WFGlobal::get_scheduler(), std::move(cb))
 {
-	... 一些初始化
+	type_ = TT_TCP;
+	fixed_addr_ = false;
+	retry_max_ = retry_max;
+	retry_times_ = 0;
+	redirect_ = false;
+	ns_policy_ = NULL;
+	router_task_ = NULL;
 }
 ```
 
 ![networktask](./pics/networktask.png)
 
-我们可以看出
-
-我们的ClientTask就是继承自WFNetworkTask
-
-所以我们在创建task的时候，这些东西就都创建了
-
-而我们的scheduler顾名思义，一个调度器，肯定是个全局调度，得是个单例
+```cpp
+WFGlobal::get_scheduler() 中创建
+```
 
 我们的单例是__CommManager，他是其中的一个组合模式的成员，生命周期相同
 
@@ -353,16 +356,16 @@ void CommRequest::dispatch()
 
 这里就做一件事scheduler->request，其中需要CommSchedObject，CommTarget
 
-![CommSchedObject](./pics/CommSchedObject.png)
+![CommSchedObject](https://github.com/chanchann/workflow_annotation/blob/main/src_analysis/pics/CommSchedObject.png?raw=true)
 
 从WFNetworkTask中可以看出，CommSchedObject是传进来的，最开始在构造的时候，传入的是NULL
 
 ```cpp
-	WFComplexClientTask(int retry_max, task_callback_t&& cb):
-		WFClientTask<REQ, RESP>(NULL, WFGlobal::get_scheduler(), std::move(cb))
-	{
-		...
-	}
+WFComplexClientTask(int retry_max, task_callback_t&& cb):
+	WFClientTask<REQ, RESP>(NULL, WFGlobal::get_scheduler(), std::move(cb))
+{
+	...
+}
 ```
 
 而什么时候才初始化呢? 在WFComplexClientTask的dispatch中set_request_object
@@ -436,4 +439,212 @@ int request(CommSession *session, CommSchedObject *object,
 ```
 
 就做两件事，一件事获取通信target，一件是调用request去发request请求
+
+获取通信target 细节可以看CommSchedObject那一节。
+
+我们直接看看发送请求的部分
+
+```cpp
+int Communicator::request(CommSession *session, CommTarget *target)
+{
+	...
+	ret = this->request_idle_conn(session, target);
+	while (ret < 0)
+	{
+		entry = this->launch_conn(session, target);
+		if (entry)
+		{
+			session->conn = entry->conn;
+			session->seq = entry->seq++;
+			data.operation = PD_OP_CONNECT;
+			data.fd = entry->sockfd;
+			data.ssl = NULL;
+			data.context = entry;
+			timeout = session->connect_timeout();
+			if (mpoller_add(&data, timeout, this->mpoller) >= 0)
+				break;
+
+			this->release_conn(entry);
+		}
+	}
+
+}
+```
+
+### request_idle_conn
+
+我们首先复用连接发送
+
+每一个连接的结构是
+
+```cpp
+
+struct CommConnEntry
+{
+	struct list_head list;
+	CommConnection *conn;
+	long long seq;
+	int sockfd;
+#define CONN_STATE_CONNECTING	0
+#define CONN_STATE_CONNECTED	1
+#define CONN_STATE_RECEIVING	2
+#define CONN_STATE_SUCCESS		3
+#define CONN_STATE_IDLE			4
+#define CONN_STATE_KEEPALIVE	5
+#define CONN_STATE_CLOSING		6
+#define CONN_STATE_ERROR		7
+	int state;
+	int error;
+	int ref;
+	struct iovec *write_iov;
+	SSL *ssl;
+	CommSession *session;
+	CommTarget *target;
+	CommService *service;
+	mpoller_t *mpoller;
+	/* Connection entry's mutex is for client session only. */
+	pthread_mutex_t mutex;
+};
+```
+
+```cpp
+int Communicator::request_idle_conn(CommSession *session, CommTarget *target)
+{
+	struct CommConnEntry *entry;
+
+	pthread_mutex_lock(&target->mutex);
+
+	entry = this->get_idle_conn(target);
+	pthread_mutex_unlock(&target->mutex);
+
+	pthread_mutex_lock(&entry->mutex);
+
+	entry->session = session;
+	session->conn = entry->conn;
+	session->seq = entry->seq++;
+	session->out = session->message_out();  // 这里直接返回要发送的req
+	this->send_message(entry);
+
+	pthread_mutex_unlock(&entry->mutex);
+}
+```
+
+这里就是先找个可复用连接，然后调用WFClientTask的message_out
+
+```cpp
+template<class REQ, class RESP>
+class WFClientTask : public WFNetworkTask<REQ, RESP>
+{
+protected:
+	virtual CommMessageOut *message_out()
+	{
+		/* By using prepare function, users can modify request after
+		 * the connection is established. */
+		if (this->prepare)
+			this->prepare(this);
+
+		return &this->req;  // 一般不用prepare修改req, 所以这里直接返回req
+	}
+
+	std::function<void (WFNetworkTask<REQ, RESP> *)> prepare;
+	...
+};
+```
+
+然后这里才是发送消息
+
+```cpp
+int Communicator::send_message(struct CommConnEntry *entry)
+{
+	struct iovec vectors[ENCODE_IOV_MAX];
+	struct iovec *end;
+	int cnt;
+
+	cnt = entry->session->out->encode(vectors, ENCODE_IOV_MAX);
+	if ((unsigned int)cnt > ENCODE_IOV_MAX)
+	{
+		if (cnt > ENCODE_IOV_MAX)
+			errno = EOVERFLOW;
+		return -1;
+	}
+
+	end = vectors + cnt;
+	if (!entry->ssl)
+	{
+		cnt = this->send_message_sync(vectors, cnt, entry);
+		if (cnt <= 0)
+			return cnt;
+	}
+
+	return this->send_message_async(end - cnt, cnt, entry);
+}
+
+```
+
+注意，这里的`entry->session->out->encode(vectors, ENCODE_IOV_MAX);`中
+
+```cpp
+class CommMessageOut
+{
+private:
+	virtual int encode(struct iovec vectors[], int max) = 0;
+
+public:
+	virtual ~CommMessageOut() { }
+	friend class Communicator;
+};
+```
+
+
+
+
+
+
+```cpp
+struct CommConnEntry *Communicator::get_idle_conn(CommTarget *target)
+{
+	struct CommConnEntry *entry;
+	list_for_each(pos, &target->idle_list)
+	{
+		entry = list_entry(pos, struct CommConnEntry, list);
+		if (mpoller_set_timeout(entry->sockfd, -1, this->mpoller) >= 0)
+		{
+			list_del(pos);
+			return entry;
+		}
+	}
+}
+```
+
+
+## 
+
+如果没有可以复用的连接，我们再去启动，那这个任务添加到poller上去异步connect。
+
+然后我们poller检测出这个事件后
+
+```cpp
+__poller_thread_routines 中调用 __poller_handle_connect(node, poller);
+
+
+static void __poller_handle_connect(struct __poller_node *node,
+									poller_t *poller)
+{
+	socklen_t len = sizeof (int);
+	int error;
+
+	if (getsockopt(node->data.fd, SOL_SOCKET, SO_ERROR, &error, &len) < 0)
+		error = errno;
+
+	if (__poller_remove_node(node, poller))
+		return;
+	...
+
+	poller->cb((struct poller_result *)node, poller->ctx);
+}
+```
+
+
+
+
 

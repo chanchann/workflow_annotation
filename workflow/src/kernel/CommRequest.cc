@@ -22,6 +22,7 @@
 
 void CommRequest::handle(int state, int error)
 {
+	LOG_TRACE("CommRequest::handle");
 	this->state = state;
 	this->error = error;
 	if (error != ETIMEDOUT)
@@ -36,6 +37,7 @@ void CommRequest::handle(int state, int error)
 
 void CommRequest::dispatch()
 {
+	LOG_TRACE("CommRequest::dispatch");
 	// 发送请求
 	if (this->scheduler->request(this, this->object, this->wait_timeout,
 								 &this->target) < 0)

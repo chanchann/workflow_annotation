@@ -330,6 +330,7 @@ protected:
 		CommRequest(object, scheduler),
 		callback(std::move(cb))
 	{
+		LOG_TRACE("WFNetworkTask create");
 		this->user_data = NULL;
 		this->send_timeo = -1;
 		this->receive_timeo = -1;

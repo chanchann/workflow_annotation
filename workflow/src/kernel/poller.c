@@ -631,6 +631,12 @@ static void __poller_handle_connect(struct __poller_node *node,
 	socklen_t len = sizeof (int);
 	int error;
 
+	// SO_ERROR
+	// Reports information about error status and clears it. This option stores an int value.
+	// https://stackoverflow.com/questions/21031717/so-error-vs-errno
+	// You set up a non-blocking socket and do a connect() that returns -1/EINPROGRESS or -1/EWOULDBLOCK. 
+	// If the connection failed, the reason is hidden away inside something called so_error in the socket. Modern systems let you see so_error with getsockopt(,,SO_ERROR,,) ...
+	// So, if you're performing asynchronous operations on sockets, you may need to use SO_ERROR. In any other case, just use errno.
 	if (getsockopt(node->data.fd, SOL_SOCKET, SO_ERROR, &error, &len) < 0)
 		error = errno;
 

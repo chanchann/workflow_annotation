@@ -111,6 +111,7 @@ public:
 	WFComplexClientTask(int retry_max, task_callback_t&& cb):
 		WFClientTask<REQ, RESP>(NULL, WFGlobal::get_scheduler(), std::move(cb))
 	{
+		LOG_TRACE("WFComplexClientTask create");
 		type_ = TT_TCP;
 		fixed_addr_ = false;
 		retry_max_ = retry_max;
@@ -382,18 +383,23 @@ void WFComplexClientTask<REQ, RESP, CTX>::dispatch()
 {
 	switch (this->state)
 	{
-	case WFT_STATE_UNDEFINED:
-		if (this->check_request())   // todo : 这里有何用
+	case WFT_STATE_UNDEFINED:  // 第一次是这个状态
+		LOG_TRACE("dispatch WFT_STATE_UNDEFINED");
+		if (this->check_request())   // 这里直接return true // todo : 这里有何用
 		{
 			// 这里 RouteManager::RouteResult route_result_;
 			// 通过dns来产生request_object
 			if (this->route_result_.request_object)   // 第一次走着初始化是空的，直接到下面产生router_task_
 			{
 	case WFT_STATE_SUCCESS:
+				LOG_TRACE("dispatch WFT_STATE_SUCCESS");
 				this->set_request_object(route_result_.request_object);
-				this->WFClientTask<REQ, RESP>::dispatch();
+				// 此处实际上调用了WFClientTask的父类的父类CommRequest的dispatch
+				// 调用scheduler->request
+				this->WFClientTask<REQ, RESP>::dispatch();  
 				return;
 			}
+			// 第一次直接过来了，产生route做dns解析
 			// 产生一个router_task_插入到前面去做dns解析
 			router_task_ = this->route();
 			series_of(this)->push_front(this);

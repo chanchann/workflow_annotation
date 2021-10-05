@@ -29,6 +29,7 @@ class CommRequest : public SubTask, public CommSession
 public:
 	CommRequest(CommSchedObject *object, CommScheduler *scheduler)
 	{
+		LOG_TRACE("CommRequest create");
 		this->scheduler = scheduler;
 		this->object = object;
 		this->wait_timeout = 0;

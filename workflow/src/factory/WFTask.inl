@@ -47,6 +47,7 @@ class WFClientTask : public WFNetworkTask<REQ, RESP>
 protected:
 	virtual CommMessageOut *message_out()
 	{
+		LOG_TRACE("WFClientTask message_out");
 		/* By using prepare function, users can modify request after
 		 * the connection is established. */
 		if (this->prepare)
@@ -55,11 +56,15 @@ protected:
 		return &this->req;
 	}
 
-	virtual CommMessageIn *message_in() { return &this->resp; }
+	virtual CommMessageIn *message_in() { 
+		LOG_TRACE("WFClientTask message_in");
+		return &this->resp; 
+	}
 
 protected:
 	virtual WFConnection *get_connection() const
 	{
+		LOG_TRACE("WFClientTask get_connection");
 		CommConnection *conn;
 
 		if (this->target)
@@ -76,6 +81,7 @@ protected:
 public:
 	void set_prepare(std::function<void (WFNetworkTask<REQ, RESP> *)> prep)
 	{
+		LOG_TRACE("WFClientTask set_prepare");
 		this->prepare = std::move(prep);
 	}
 
@@ -87,6 +93,7 @@ public:
 				 std::function<void (WFNetworkTask<REQ, RESP> *)>&& cb) :
 		WFNetworkTask<REQ, RESP>(object, scheduler, std::move(cb))
 	{
+		LOG_TRACE("WFClientTask create");
 	}
 
 protected:
