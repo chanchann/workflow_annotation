@@ -382,9 +382,18 @@ void Communicator::shutdown_service(CommService *service)
 # endif
 #endif
 
+/**
+ * @brief 同步方式发送
+ * 
+ * @param vectors 
+ * @param cnt 
+ * @param entry 
+ * @return int 
+ */
 int Communicator::send_message_sync(struct iovec vectors[], int cnt,
 									struct CommConnEntry *entry)
 {
+	LOG_TRACE("Communicator::send_message_sync");
 	CommSession *session = entry->session;
 	CommService *service;
 	int timeout;
@@ -520,6 +529,7 @@ int Communicator::send_message(struct CommConnEntry *entry)
 	struct iovec *end;
 	int cnt;
 
+	// 1. http client，这里的encode是HttpMessage的实现
 	cnt = entry->session->out->encode(vectors, ENCODE_IOV_MAX);
 	if ((unsigned int)cnt > ENCODE_IOV_MAX)
 	{
@@ -527,10 +537,11 @@ int Communicator::send_message(struct CommConnEntry *entry)
 			errno = EOVERFLOW;
 		return -1;
 	}
-
+	
 	end = vectors + cnt;
 	if (!entry->ssl)
 	{
+		// 消息一次发得出去，就不走异步写了啊。这样子快。试个大一点的消息，就会进poller了。
 		cnt = this->send_message_sync(vectors, cnt, entry);
 		if (cnt <= 0)
 			return cnt;
@@ -1413,6 +1424,7 @@ int Communicator::nonblock_connect(CommTarget *target)
 struct CommConnEntry *Communicator::launch_conn(CommSession *session,
 												CommTarget *target)
 {
+	LOG_TRACE("Communicator::launch_conn");
 	struct CommConnEntry *entry;
 	int sockfd;
 	int ret;
@@ -1502,7 +1514,13 @@ int Communicator::request_idle_conn(CommSession *session, CommTarget *target)
 		entry->session = session;
 		session->conn = entry->conn;
 		session->seq = entry->seq++;
-		session->out = session->message_out(); // WFClientTask
+		// 1. 如果是HTTP client的话
+		// 这里是 CommMessageOut *ComplexHttpTask::message_out()
+		// 用于拼凑req请求，自动添加一些字段
+		// 2. 如果是HTTP Server的话
+		session->out = session->message_out(); 
+		// message_out获得的是往连接上要发的数据
+		// 接下来send_message 把发出去
 		if (session->out)
 			ret = this->send_message(entry);
 
@@ -1522,6 +1540,7 @@ int Communicator::request_idle_conn(CommSession *session, CommTarget *target)
 
 int Communicator::request(CommSession *session, CommTarget *target)
 {
+	LOG_TRACE("Communicator::request");
 	struct CommConnEntry *entry;
 	struct poller_data data;
 	int errno_bak;

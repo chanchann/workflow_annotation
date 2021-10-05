@@ -12,6 +12,8 @@ demos 中
 
 并非原生workflow所有，本版本添加上日志，方便学习观察流程
 
+用户用原生workflow跑demos，可以把log改fprintf
+
 ## 总结一下平时水群的问题
 
 1. 自定义协议server/client ssl

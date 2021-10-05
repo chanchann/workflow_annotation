@@ -23,6 +23,7 @@
 #include <sys/socket.h>
 #include <time.h>
 #include <openssl/ssl.h>
+#include "logger.h"
 
 typedef struct __poller poller_t;
 typedef struct __poller_message poller_message_t;

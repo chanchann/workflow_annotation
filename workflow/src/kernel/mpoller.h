@@ -22,6 +22,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include "poller.h"
+#include "logger.h"
 
 typedef struct __mpoller mpoller_t;
 

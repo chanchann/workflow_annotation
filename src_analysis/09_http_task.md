@@ -522,83 +522,14 @@ int Communicator::request_idle_conn(CommSession *session, CommTarget *target)
 	entry->session = session;
 	session->conn = entry->conn;
 	session->seq = entry->seq++;
-	session->out = session->message_out();  // 这里直接返回要发送的req
+	session->out = session->message_out(); // 这里是 CommMessageOut *ComplexHttpTask::message_out()
 	this->send_message(entry);
 
 	pthread_mutex_unlock(&entry->mutex);
 }
 ```
 
-这里就是先找个可复用连接，然后调用WFClientTask的message_out
-
-```cpp
-template<class REQ, class RESP>
-class WFClientTask : public WFNetworkTask<REQ, RESP>
-{
-protected:
-	virtual CommMessageOut *message_out()
-	{
-		/* By using prepare function, users can modify request after
-		 * the connection is established. */
-		if (this->prepare)
-			this->prepare(this);
-
-		return &this->req;  // 一般不用prepare修改req, 所以这里直接返回req
-	}
-
-	std::function<void (WFNetworkTask<REQ, RESP> *)> prepare;
-	...
-};
-```
-
-然后这里才是发送消息
-
-```cpp
-int Communicator::send_message(struct CommConnEntry *entry)
-{
-	struct iovec vectors[ENCODE_IOV_MAX];
-	struct iovec *end;
-	int cnt;
-
-	cnt = entry->session->out->encode(vectors, ENCODE_IOV_MAX);
-	if ((unsigned int)cnt > ENCODE_IOV_MAX)
-	{
-		if (cnt > ENCODE_IOV_MAX)
-			errno = EOVERFLOW;
-		return -1;
-	}
-
-	end = vectors + cnt;
-	if (!entry->ssl)
-	{
-		cnt = this->send_message_sync(vectors, cnt, entry);
-		if (cnt <= 0)
-			return cnt;
-	}
-
-	return this->send_message_async(end - cnt, cnt, entry);
-}
-
-```
-
-注意，这里的`entry->session->out->encode(vectors, ENCODE_IOV_MAX);`中
-
-```cpp
-class CommMessageOut
-{
-private:
-	virtual int encode(struct iovec vectors[], int max) = 0;
-
-public:
-	virtual ~CommMessageOut() { }
-	friend class Communicator;
-};
-```
-
-
-
-
-
+这里就是先找个可复用连接
 
 ```cpp
 struct CommConnEntry *Communicator::get_idle_conn(CommTarget *target)
@@ -616,6 +547,137 @@ struct CommConnEntry *Communicator::get_idle_conn(CommTarget *target)
 }
 ```
 
+然后调用ComplexHttpTask::message_out(), 用于拼凑req请求，自动添加一些字段。
+
+message_out获得的是往连接上要发的数据。
+
+此处我们在 : https://github.com/chanchann/workflow_annotation/blob/main/src_analysis/04_http_improve.md
+
+已经详细分析过
+
+### send_message
+
+```cpp
+int Communicator::send_message(struct CommConnEntry *entry)
+{
+	struct iovec vectors[ENCODE_IOV_MAX];
+	struct iovec *end;
+	int cnt;
+
+	cnt = entry->session->out->encode(vectors, ENCODE_IOV_MAX);
+	...
+	end = vectors + cnt;
+	if (!entry->ssl)
+	{
+		cnt = this->send_message_sync(vectors, cnt, entry);
+		if (cnt <= 0)
+			return cnt;
+	}
+
+	return this->send_message_async(end - cnt, cnt, entry);
+}
+```
+
+注意，这里的`entry->session->out->encode(vectors, ENCODE_IOV_MAX);`中
+
+协议，需要提供协议的序列化和反序列化方法encode
+
+encode函数在消息被发送之前调用，每条消息只调用一次。
+
+encode函数里，用户需要将消息序列化到一个vector数组，数组元素个数不超过max。目前max的值为8192。
+
+结构体struct iovec定义在请参考系统调用readv和writev。
+
+encode函数正确情况下的返回值在0到max之间，表示消息使用了多少个vector。
+
+encode返回-1表示错误。返回-1时，需要置errno。如果返回值>max，将得到一个EOVERFLOW错误。错误都在callback里得到。
+
+为了性能考虑vector里的iov_base指针指向的内容不会被复制。所以一般指向消息类的成员。
+
+![message_out](https://github.com/chanchann/workflow_annotation/blob/main/src_analysis/pics/message_out01.png?raw=true)
+
+这里的encode是HttpMessage的实现。此处先从略，等到HTTP协议解析部分再详解，就是先把消息序列化。
+
+## send_message_sync
+
+那么我们开始发送消息
+
+```cpp
+int Communicator::send_message_sync(struct iovec vectors[], int cnt,
+									struct CommConnEntry *entry)
+{
+	CommSession *session = entry->session;
+
+	while (cnt > 0)
+	{
+		n = writev(entry->sockfd, vectors, cnt <= IOV_MAX ? cnt : IOV_MAX);
+		if (n < 0)
+			return errno == EAGAIN ? cnt : -1;
+
+		for (i = 0; i < cnt; i++)
+		{
+			if ((size_t)n >= vectors[i].iov_len)
+				n -= vectors[i].iov_len;
+			else
+			{
+				vectors[i].iov_base = (char *)vectors[i].iov_base + n;
+				vectors[i].iov_len -= n;
+				break;
+			}
+		}
+
+		vectors += i;
+		cnt -= i;
+	}
+
+	service = entry->service;
+	if (service)
+	{
+		__sync_add_and_fetch(&entry->ref, 1);
+		timeout = session->keep_alive_timeout();
+		switch (timeout)
+		{
+		default:
+			mpoller_set_timeout(entry->sockfd, timeout, this->mpoller);
+			pthread_mutex_lock(&service->mutex);
+			if (service->listen_fd >= 0)
+			{
+				entry->state = CONN_STATE_KEEPALIVE;
+				list_add_tail(&entry->list, &service->alive_list);
+				entry = NULL;
+			}
+
+			pthread_mutex_unlock(&service->mutex);
+			if (entry)
+			{
+		case 0:
+				mpoller_del(entry->sockfd, this->mpoller);
+				entry->state = CONN_STATE_CLOSING;
+			}
+		}
+	}
+	else
+	{
+		if (entry->state == CONN_STATE_IDLE)
+		{
+			timeout = session->first_timeout();
+			if (timeout == 0)
+				timeout = Communicator::first_timeout_recv(session);
+			else
+			{
+				session->timeout = -1;
+				session->begin_time.tv_nsec = -1;
+			}
+
+			mpoller_set_timeout(entry->sockfd, timeout, this->mpoller);
+		}
+
+		entry->state = CONN_STATE_RECEIVING;
+	}
+
+	return 0;
+}
+```
 
 ## 
 
@@ -644,7 +706,7 @@ static void __poller_handle_connect(struct __poller_node *node,
 }
 ```
 
-
+未完待续
 
 
 

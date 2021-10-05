@@ -37,7 +37,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
 # add_subdirectory(${PROJECT_SOURCE_DIR}/04_wget)
 # add_subdirectory(${PROJECT_SOURCE_DIR}/05_http_echo)
 
-# add_subdirectory(${PROJECT_SOURCE_DIR}/07_http)
+add_subdirectory(${PROJECT_SOURCE_DIR}/07_http)
 # add_subdirectory(${PROJECT_SOURCE_DIR}/08_max_con)
 # add_subdirectory(${PROJECT_SOURCE_DIR}/09_timer)
 # add_subdirectory(${PROJECT_SOURCE_DIR}/10_http_forward)
