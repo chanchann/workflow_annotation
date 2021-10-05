@@ -1720,8 +1720,10 @@ int Communicator::push(const void *buf, size_t size, CommSession *session)
 
 int Communicator::sleep(SleepSession *session)
 {
+	LOG_TRACE("Communicator::sleep");
 	struct timespec value;
 
+	// 这里就是调用了__WFTimerTask的duration
 	if (session->duration(&value) >= 0)
 	{
 		if (mpoller_add_timer(&value, session, this->mpoller) >= 0)

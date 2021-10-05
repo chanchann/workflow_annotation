@@ -1,91 +1,162 @@
 # workflow 源码解析 04 : http 
 
-我们由最简单的例子来分析一下http的流程
-
-我们gdb启动最简单的demo
+我们先看最简单的http例子
 
 https://github.com/chanchann/workflow_annotation/blob/main/demos/07_http/http_req.cc
 
+## create_http_task
+
 首先我们创建出http task
 
-然后task->start()起来
+```cpp
+WFHttpTask *WFTaskFactory::create_http_task(const std::string& url,
+											int redirect_max,
+											int retry_max,
+											http_callback_t callback)
+{
+	auto *task = new ComplexHttpTask(redirect_max,
+									 retry_max,
+									 std::move(callback));
+	ParsedURI uri;
+
+	URIParser::parse(url, uri);
+	task->init(std::move(uri));
+	task->set_keep_alive(HTTP_KEEPALIVE_DEFAULT);
+	return task;
+}
+```
+
+## ComplexHttpTask
+
+我们实际上是new了ComplexHttpTask
 
 ```cpp
-template<class REQ, class RESP>
-class WFNetworkTask : public CommRequest
+class ComplexHttpTask : public WFComplexClientTask<HttpRequest, HttpResponse>
 {
 public:
-	/* start(), dismiss() are for client tasks only. */
-	void start()
+	ComplexHttpTask(int redirect_max,
+					int retry_max,
+					http_callback_t&& callback):
+		WFComplexClientTask(retry_max, std::move(callback)),
+		redirect_max_(redirect_max),
+		redirect_count_(0)
 	{
-		assert(!series_of(this));
-		Workflow::start_series_work(this, nullptr);
+		...
 	}
-    ...
-};
-```
 
-我们所有的task都在series中进行，所以我们不能让这个裸的task执行，先给他创建series_work
-
-```cpp
-inline void
-Workflow::start_series_work(SubTask *first, series_callback_t callback)
-{
-	new SeriesWork(first, std::move(callback));
-	first->dispatch();
-}
-```
-
-我们先来观察一下SeriesWork的结构
-
-```cpp
-
-class SeriesWork
-{
-....
 protected:
-	void *context;
-	series_callback_t callback;
+	virtual CommMessageOut *message_out();
+	virtual CommMessageIn *message_in();
+	virtual int keep_alive_timeout();
+	virtual bool init_success();
+	virtual void init_failed();
+	virtual bool finish_once();
+
+protected:
+	bool need_redirect(ParsedURI& uri);
+	bool redirect_url(HttpResponse *client_resp, ParsedURI& uri);
+	void set_empty_request();
+
 private:
-	SubTask *first;  
-	SubTask *last;   
-	SubTask **queue;  
-	int queue_size;
-	int front;
-	int back;
-	bool in_parallel;
-	bool canceled;
-	std::mutex mutex;
+	int redirect_max_;  
+	int redirect_count_;
 };
-
 ```
 
-所以我们在new 构造的时候，初始化一下
+我们在这里添加了http相关的功能
 
-```cpp
-SeriesWork::SeriesWork(SubTask *first, series_callback_t&& cb) :
-	callback(std::move(cb))
-{
-	this->queue = new SubTask *[4];
-	this->queue_size = 4;
-	this->front = 0;
-	this->back = 0;
-	this->in_parallel = false;
-	this->canceled = false;
-	first->set_pointer(this);
-	this->first = first;
-	this->last = NULL;
-	this->context = NULL;
-}
-```
+这些重要的功能后面用到再细说
 
-注意我们这里first->set_pointer(this); 把subTask和这个SeriesWork绑定了起来
-
-然后第一个任务，dispatch
-
-我们从create_http_task中知道，我们创建的task其实是ComplexHttpTask
+### WFComplexClientTask<HttpRequest, HttpResponse>
 
 而ComplexHttpTask继承自WFComplexClientTask<HttpRequest, HttpResponse>
+
+已经是用了相应的protocol实例化
+
+```cpp
+
+template<class REQ, class RESP, typename CTX = bool>
+class WFComplexClientTask : public WFClientTask<REQ, RESP>
+{
+protected:
+	using task_callback_t = std::function<void (WFNetworkTask<REQ, RESP> *)>;
+
+public:
+	WFComplexClientTask(int retry_max, task_callback_t&& cb):
+		WFClientTask<REQ, RESP>(NULL, WFGlobal::get_scheduler(), std::move(cb))
+	{
+		type_ = TT_TCP;
+		fixed_addr_ = false;
+		retry_max_ = retry_max;
+		retry_times_ = 0;
+		redirect_ = false;
+		ns_policy_ = NULL;
+		router_task_ = NULL;
+	}
+
+protected:
+	// new api for children
+	virtual bool init_success() { return true; }
+	virtual void init_failed() {}
+	virtual bool check_request() { return true; }
+	virtual WFRouterTask *route();
+	virtual bool finish_once() { return true; }
+
+public:
+	void init(const ParsedURI& uri);
+	void init(ParsedURI&& uri);
+	void init(TransportType type,
+			  const struct sockaddr *addr,
+			  socklen_t addrlen,
+			  const std::string& info);
+
+	void set_transport_type(TransportType type);
+
+	TransportType get_transport_type() const { return type_; }
+
+	virtual const ParsedURI *get_current_uri() const { return &uri_; }
+
+	void set_redirect(const ParsedURI& uri);
+
+	void set_redirect(TransportType type, const struct sockaddr *addr,
+					  socklen_t addrlen, const std::string& info);
+
+protected:
+	void set_info(const std::string& info);
+	void set_info(const char *info);
+
+	virtual void dispatch();
+	virtual SubTask *done();
+
+	void clear_resp();
+	void disable_retry();
+
+
+	TransportType type_;
+	ParsedURI uri_;
+	std::string info_;
+	bool fixed_addr_;
+	bool redirect_;
+	CTX ctx_;
+	int retry_max_;
+	int retry_times_;
+	WFNSPolicy *ns_policy_;
+	WFRouterTask *router_task_;
+	RouteManager::RouteResult route_result_;
+	WFNSTracing tracing_;
+
+public:
+	CTX *get_mutable_ctx() { return &ctx_; }
+
+private:
+	void clear_prev_state();
+	void init_with_uri();
+	bool set_port();
+	void router_callback(WFRouterTask *task);
+	void switch_callback(WFTimerTask *task);
+};
+
+```
 
 需要注意的是SubTask要求用户实现两个接口，dispatch和done。
 

@@ -81,6 +81,9 @@ static inline int mpoller_add_timer(const struct timespec *value, void *context,
 {
 	static unsigned int n = 0;
 	unsigned int index = n++ % mpoller->nthreads;
+	
+	LOG_TRACE("mpoller_add_timer add to %d's thrd", index);
+
 	return poller_add_timer(value, context, mpoller->poller[index]);
 }
 

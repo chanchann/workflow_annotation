@@ -292,7 +292,6 @@ int thrdpool_schedule(const struct thrdpool_task *task, thrdpool_t *pool)
 	// 靠entry->task = *task 来复用entry了
 	LOG_TRACE("thrdpool_schedule");
 	void *buf = malloc(sizeof (struct __thrdpool_task_entry));
-
 	if (buf)
 	{
 		__thrdpool_schedule(task, buf, pool);

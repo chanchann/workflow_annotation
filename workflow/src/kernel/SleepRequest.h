@@ -28,12 +28,14 @@ class SleepRequest : public SubTask, public SleepSession
 public:
 	SleepRequest(CommScheduler *scheduler)
 	{
+		LOG_TRACE("SleepRequest creator");
 		this->scheduler = scheduler;
 	}
 
 public:
 	virtual void dispatch()
 	{
+		LOG_TRACE("SleepRequest dispatch");
 		if (this->scheduler->sleep(this) < 0)
 		{
 			this->state = SS_STATE_ERROR;
@@ -52,6 +54,7 @@ protected:
 protected:
 	virtual void handle(int state, int error)
 	{
+		LOG_TRACE("SleepRequest handle");
 		this->state = state;
 		this->error = error;
 		this->subtask_done();

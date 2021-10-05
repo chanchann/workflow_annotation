@@ -24,12 +24,14 @@
 #include "rbtree.h"
 #include "WFGlobal.h"
 #include "WFTaskFactory.h"
+#include "logger.h"
 
 class __WFTimerTask : public WFTimerTask
 {
 protected:
 	virtual int duration(struct timespec *value)
 	{
+		LOG_TRACE("__WFTimerTask duration");
 		value->tv_sec = this->seconds;
 		value->tv_nsec = this->nanoseconds;
 		return 0;
@@ -44,6 +46,7 @@ public:
 				  timer_callback_t&& cb) :
 		WFTimerTask(scheduler, std::move(cb))
 	{
+		LOG_TRACE("__WFTimerTask creator");
 		this->seconds = seconds;
 		this->nanoseconds = nanoseconds;
 	}
@@ -52,6 +55,7 @@ public:
 WFTimerTask *WFTaskFactory::create_timer_task(unsigned int microseconds,
 											  timer_callback_t callback)
 {
+	LOG_TRACE("create_timer_task");
 	return new __WFTimerTask((time_t)(microseconds / 1000000),
 							 (long)(microseconds % 1000000 * 1000),
 							 WFGlobal::get_scheduler(),

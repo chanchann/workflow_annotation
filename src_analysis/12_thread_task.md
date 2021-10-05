@@ -475,7 +475,6 @@ void Executor::executor_thread_routine(void *context)
 }
 ```
 
-这个函数就是取出一个任务，执行，并且如果queue不为空，继续去取下一个
 
 1. 执行此任务
 
@@ -484,7 +483,131 @@ session->execute();
 session->handle(ES_STATE_FINISHED, 0);
 ```
 
-其中去取queue中下一个去执行
+todo : thrdpool_schedule 这里需要再整理一番
 
+## 日志流程
 
+```
+T 21-10-03 23:41:43.907341 [tid : 10039] <WFTaskFactory.inl:605> : create_thread_task
+T 21-10-03 23:41:43.909882 [tid : 10039] <Executor.h:82> : Executor creator
+T 21-10-03 23:41:43.912471 [tid : 10039] <WFGlobal.cc:537> : __ExecManager creator
+T 21-10-03 23:41:43.913831 [tid : 10039] <Executor.cc:66> : Executor::init
+T 21-10-03 23:41:43.914381 [tid : 10039] <Executor.cc:72> : Calculate thread pool create
+T 21-10-03 23:41:43.914764 [tid : 10039] <Executor.h:39> : ExecQueue creator
+T 21-10-03 23:41:43.914952 [tid : 10039] <Executor.cc:42> : ExecQueue::init
+T 21-10-03 23:41:43.915091 [tid : 10039] <Executor.h:61> : ExecSession creator
+T 21-10-03 23:41:43.915205 [tid : 10039] <ExecRequest.h:31> : ExecRequest creator
+T 21-10-03 23:41:43.915294 [tid : 10039] <WFTask.h:119> : WFThreadTask constructor
+T 21-10-03 23:41:43.915473 [tid : 10039] <WFTaskFactory.inl:595> : __WFThreadTask constructor
+// 之前可以看出构造的流程
+
+T 21-10-03 23:41:43.916085 [tid : 10039] <ExecRequest.h:42> : ExecRequest dispatch
+T 21-10-03 23:41:43.916254 [tid : 10039] <Executor.cc:144> : Executor::request
+
+// 这两句才是调用的核心
+
+T 21-10-03 23:41:43.916388 [tid : 10039] <Executor.cc:158> : add task to task_list
+T 21-10-03 23:41:43.916513 [tid : 10039] <thrdpool.c:293> : thrdpool_schedule
+T 21-10-03 23:41:43.916679 [tid : 10039] <thrdpool.c:267> : __thrdpool_schedule
+T 21-10-03 23:41:43.916811 [tid : 10039] <thrdpool.c:274> : add entry list to pool task Queue
+T 21-10-03 23:41:43.917034 [tid : 10039] <WFGlobal.cc:387> : __CommManager creator
+T 21-10-03 23:41:43.917166 [tid : 10039] <CommScheduler.h:118> : CommScheduler::init
+T 21-10-03 23:41:43.917466 [tid : 10039] <Communicator.cc:1294> : create handler thread pool
+T 21-10-03 23:41:43.919664 [tid : 10039] <thrdpool.c:293> : thrdpool_schedule
+T 21-10-03 23:41:43.920183 [tid : 10039] <thrdpool.c:267> : __thrdpool_schedule
+T 21-10-03 23:41:43.920285 [tid : 10039] <thrdpool.c:274> : add entry list to pool task Queue
+T 21-10-03 23:41:43.920300 [tid : 10039] <thrdpool.c:293> : thrdpool_schedule
+T 21-10-03 23:41:43.920311 [tid : 10039] <thrdpool.c:267> : __thrdpool_schedule
+T 21-10-03 23:41:43.920350 [tid : 10039] <thrdpool.c:274> : add entry list to pool task Queue
+T 21-10-03 23:41:43.920362 [tid : 10039] <thrdpool.c:293> : thrdpool_schedule
+T 21-10-03 23:41:43.920372 [tid : 10039] <thrdpool.c:267> : __thrdpool_schedule
+T 21-10-03 23:41:43.920489 [tid : 10039] <thrdpool.c:274> : add entry list to pool task Queue
+T 21-10-03 23:41:43.920501 [tid : 10039] <thrdpool.c:293> : thrdpool_schedule
+T 21-10-03 23:41:43.920511 [tid : 10039] <thrdpool.c:267> : __thrdpool_schedule
+T 21-10-03 23:41:43.920554 [tid : 10039] <thrdpool.c:274> : add entry list to pool task Queue
+T 21-10-03 23:41:43.920573 [tid : 10039] <thrdpool.c:293> : thrdpool_schedule
+T 21-10-03 23:41:43.920982 [tid : 10039] <thrdpool.c:267> : __thrdpool_schedule
+T 21-10-03 23:41:43.921003 [tid : 10039] <thrdpool.c:274> : add entry list to pool task Queue
+T 21-10-03 23:41:43.921035 [tid : 10039] <thrdpool.c:293> : thrdpool_schedule
+T 21-10-03 23:41:43.921055 [tid : 10039] <thrdpool.c:267> : __thrdpool_schedule
+T 21-10-03 23:41:43.921067 [tid : 10039] <thrdpool.c:274> : add entry list to pool task Queue
+T 21-10-03 23:41:43.921087 [tid : 10039] <thrdpool.c:293> : thrdpool_schedule
+T 21-10-03 23:41:43.921108 [tid : 10039] <thrdpool.c:267> : __thrdpool_schedule
+T 21-10-03 23:41:43.921125 [tid : 10039] <thrdpool.c:274> : add entry list to pool task Queue
+T 21-10-03 23:41:43.921223 [tid : 10039] <thrdpool.c:293> : thrdpool_schedule
+T 21-10-03 23:41:43.921245 [tid : 10039] <thrdpool.c:267> : __thrdpool_schedule
+T 21-10-03 23:41:43.921261 [tid : 10039] <thrdpool.c:274> : add entry list to pool task Queue
+T 21-10-03 23:41:43.921273 [tid : 10039] <thrdpool.c:293> : thrdpool_schedule
+T 21-10-03 23:41:43.921286 [tid : 10039] <thrdpool.c:267> : __thrdpool_schedule
+T 21-10-03 23:41:43.921301 [tid : 10039] <thrdpool.c:274> : add entry list to pool task Queue
+T 21-10-03 23:41:43.921313 [tid : 10039] <thrdpool.c:293> : thrdpool_schedule
+T 21-10-03 23:41:43.921330 [tid : 10039] <thrdpool.c:267> : __thrdpool_schedule
+T 21-10-03 23:41:43.921342 [tid : 10039] <thrdpool.c:274> : add entry list to pool task Queue
+T 21-10-03 23:41:43.921432 [tid : 10039] <thrdpool.c:293> : thrdpool_schedule
+T 21-10-03 23:41:43.921445 [tid : 10039] <thrdpool.c:267> : __thrdpool_schedule
+T 21-10-03 23:41:43.921461 [tid : 10039] <thrdpool.c:274> : add entry list to pool task Queue
+T 21-10-03 23:41:43.921672 [tid : 10039] <thrdpool.c:293> : thrdpool_schedule
+T 21-10-03 23:41:43.921689 [tid : 10039] <thrdpool.c:267> : __thrdpool_schedule
+T 21-10-03 23:41:43.921702 [tid : 10039] <thrdpool.c:274> : add entry list to pool task Queue
+T 21-10-03 23:41:43.921719 [tid : 10039] <thrdpool.c:293> : thrdpool_schedule
+T 21-10-03 23:41:43.921731 [tid : 10039] <thrdpool.c:267> : __thrdpool_schedule
+T 21-10-03 23:41:43.921817 [tid : 10039] <thrdpool.c:274> : add entry list to pool task Queue
+T 21-10-03 23:41:43.921848 [tid : 10039] <thrdpool.c:293> : thrdpool_schedule
+T 21-10-03 23:41:43.921868 [tid : 10039] <thrdpool.c:267> : __thrdpool_schedule
+T 21-10-03 23:41:43.921884 [tid : 10039] <thrdpool.c:274> : add entry list to pool task Queue
+T 21-10-03 23:41:43.921912 [tid : 10039] <thrdpool.c:293> : thrdpool_schedule
+T 21-10-03 23:41:43.921933 [tid : 10039] <thrdpool.c:267> : __thrdpool_schedule
+T 21-10-03 23:41:43.922039 [tid : 10039] <thrdpool.c:274> : add entry list to pool task Queue
+T 21-10-03 23:41:43.922056 [tid : 10039] <thrdpool.c:293> : thrdpool_schedule
+T 21-10-03 23:41:43.922083 [tid : 10039] <thrdpool.c:267> : __thrdpool_schedule
+T 21-10-03 23:41:43.922103 [tid : 10039] <thrdpool.c:274> : add entry list to pool task Queue
+T 21-10-03 23:41:43.922123 [tid : 10039] <thrdpool.c:293> : thrdpool_schedule
+T 21-10-03 23:41:43.922135 [tid : 10039] <thrdpool.c:267> : __thrdpool_schedule
+T 21-10-03 23:41:43.922433 [tid : 10039] <thrdpool.c:274> : add entry list to pool task Queue
+T 21-10-03 23:41:43.922540 [tid : 10039] <thrdpool.c:293> : thrdpool_schedule
+T 21-10-03 23:41:43.922564 [tid : 10039] <thrdpool.c:267> : __thrdpool_schedule
+T 21-10-03 23:41:43.922584 [tid : 10039] <thrdpool.c:274> : add entry list to pool task Queue
+T 21-10-03 23:41:43.922596 [tid : 10039] <thrdpool.c:293> : thrdpool_schedule
+T 21-10-03 23:41:43.922608 [tid : 10039] <thrdpool.c:267> : __thrdpool_schedule
+T 21-10-03 23:41:43.922619 [tid : 10039] <thrdpool.c:274> : add entry list to pool task Queue
+T 21-10-03 23:41:43.922636 [tid : 10039] <thrdpool.c:293> : thrdpool_schedule
+T 21-10-03 23:41:43.922647 [tid : 10039] <thrdpool.c:267> : __thrdpool_schedule
+T 21-10-03 23:41:43.922737 [tid : 10039] <thrdpool.c:274> : add entry list to pool task Queue
+T 21-10-03 23:41:43.921017 [tid : 10045] <thrdpool.c:54> : __thrdpool_routine
+T 21-10-03 23:41:43.922065 [tid : 10060] <thrdpool.c:54> : __thrdpool_routine
+T 21-10-03 23:41:43.921708 [tid : 10055] <thrdpool.c:54> : __thrdpool_routine
+T 21-10-03 23:41:43.921045 [tid : 10046] <thrdpool.c:54> : __thrdpool_routine
+T 21-10-03 23:41:43.922113 [tid : 10061] <thrdpool.c:54> : __thrdpool_routine
+T 21-10-03 23:41:43.921420 [tid : 10052] <thrdpool.c:54> : __thrdpool_routine
+T 21-10-03 23:41:43.921738 [tid : 10056] <thrdpool.c:54> : __thrdpool_routine
+T 21-10-03 23:41:43.921234 [tid : 10048] <thrdpool.c:54> : __thrdpool_routine
+T 21-10-03 23:41:43.921830 [tid : 10057] <thrdpool.c:54> : __thrdpool_routine
+T 21-10-03 23:41:43.921292 [tid : 10050] <thrdpool.c:54> : __thrdpool_routine
+T 21-10-03 23:41:43.922574 [tid : 10062] <thrdpool.c:54> : __thrdpool_routine
+T 21-10-03 23:41:43.921452 [tid : 10053] <thrdpool.c:54> : __thrdpool_routine
+T 21-10-03 23:41:43.921115 [tid : 10047] <thrdpool.c:54> : __thrdpool_routine
+T 21-10-03 23:41:43.921892 [tid : 10058] <thrdpool.c:54> : __thrdpool_routine
+T 21-10-03 23:41:43.921660 [tid : 10054] <thrdpool.c:54> : __thrdpool_routine
+T 21-10-03 23:41:43.922628 [tid : 10063] <thrdpool.c:54> : __thrdpool_routine
+T 21-10-03 23:41:43.921928 [tid : 10059] <thrdpool.c:54> : __thrdpool_routine
+T 21-10-03 23:41:43.921257 [tid : 10049] <thrdpool.c:54> : __thrdpool_routine
+T 21-10-03 23:41:43.922731 [tid : 10064] <thrdpool.c:54> : __thrdpool_routine
+T 21-10-03 23:41:43.921323 [tid : 10051] <thrdpool.c:54> : __thrdpool_routine
+T 21-10-03 23:41:43.923690 [tid : 10040] <thrdpool.c:54> : __thrdpool_routine
+
+// todo :
+// 1. 为什么会反复thrdpool_schedule， __thrdpool_schedule
+// 2. <Communicator.cc:1294> : create handler thread pool 为什么这里需要被创建
+// 3. __thrdpool_routine 是哪一个线程池的
+
+T 21-10-03 23:41:43.923840 [tid : 10040] <Executor.cc:90> : Executor::executor_thread_routine
+T 21-10-03 23:41:43.923991 [tid : 10040] <WFTaskFactory.inl:581> : __WFThreadTask execute routine
+
+// 最终拿出来的任务session->execute();  就是__WFThreadTask->excute() 就是 routine
+
+T 21-10-03 23:41:43.924009 [tid : 10040] <24_thrd_task_01.cc:28> : add_routine
+T 21-10-03 23:41:43.924026 [tid : 10040] <ExecRequest.h:62> : ExecRequest handle
+I 21-10-03 23:41:43.924039 [tid : 10040] <WFTask.h:98> : WFThreadTask done
+I 21-10-03 23:41:43.924115 [tid : 10040] <24_thrd_task_01.cc:40> : 1 + 2 = 3
+```
 

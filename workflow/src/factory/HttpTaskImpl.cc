@@ -46,6 +46,7 @@ public:
 		redirect_max_(redirect_max),
 		redirect_count_(0)
 	{
+		LOG_TRACE("ComplexHttpTask creator");
 		HttpRequest *client_req = this->get_req();
 
 		// 默认Get / HTTP/1.1
@@ -781,6 +782,7 @@ WFHttpTask *WFTaskFactory::create_http_task(const std::string& url,
 											int retry_max,
 											http_callback_t callback)
 {
+	LOG_TRACE("create_http_task");
 	auto *task = new ComplexHttpTask(redirect_max,
 									 retry_max,
 									 std::move(callback));

@@ -1263,9 +1263,11 @@ int poller_start(poller_t *poller)
 static void __poller_insert_node(struct __poller_node *node,
 								 poller_t *poller)
 {
+	LOG_TRACE("__poller_insert_node");
 	struct __poller_node *end;
 
 	end = list_entry(poller->timeo_list.prev, struct __poller_node, list);
+	
 	if (list_empty(&poller->timeo_list) || __timeout_cmp(node, end) >= 0)
 		list_add_tail(&node->list, &poller->timeo_list);
 	else
@@ -1598,11 +1600,13 @@ int poller_set_timeout(int fd, int timeout, poller_t *poller)
 int poller_add_timer(const struct timespec *value, void *context,
 					 poller_t *poller)
 {
+	LOG_TRACE("poller_add_timer");
 	struct __poller_node *node;
 
 	node = (struct __poller_node *)malloc(sizeof (struct __poller_node));
 	if (node)
 	{
+		 // 初始化node
 		memset(&node->data, 0, sizeof (struct poller_data));
 		node->data.operation = PD_OP_TIMER;
 		node->data.fd = -1;

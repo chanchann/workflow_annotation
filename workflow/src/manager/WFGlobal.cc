@@ -384,6 +384,7 @@ private:
 		dns_manager_(NULL),
 		dns_flag_(false)
 	{
+		LOG_TRACE("__CommManager creator");
 		const auto *settings = __WFGlobal::get_instance()->get_global_settings();
 		if (scheduler_.init(settings->poller_threads,
 							settings->handler_threads) < 0)

@@ -392,6 +392,7 @@ public:
 		SleepRequest(scheduler),
 		callback(std::move(cb))
 	{
+		LOG_TRACE("WFTimerTask creator");
 		this->user_data = NULL;
 		this->state = WFT_STATE_UNDEFINED;
 		this->error = 0;

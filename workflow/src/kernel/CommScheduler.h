@@ -128,6 +128,7 @@ public:
 	int request(CommSession *session, CommSchedObject *object,
 				int wait_timeout, CommTarget **target)
 	{
+		LOG_TRACE("CommScheduler request");
 		int ret = -1;
 		// 就做两件事
 		// 1. 获取target
@@ -167,6 +168,7 @@ public:
 	/* for sleepers. */
 	int sleep(SleepSession *session)
 	{
+		LOG_TRACE("CommScheduler sleep");
 		return this->comm.sleep(session);
 	}
 
