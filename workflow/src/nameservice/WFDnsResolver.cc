@@ -270,6 +270,9 @@ private:
 
 void WFResolverTask::dispatch()
 {
+	// https://github.com/chanchann/workflow_annotation/blob/main/src_analysis/other_02_dns_opt.md
+	// 此处逻辑较为乱
+	// 给出新版优化后代码解析
 	insert_dns_ = true;
 	if (dns_cache_level_ != DNS_CACHE_LEVEL_0)
 	{

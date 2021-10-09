@@ -9,27 +9,42 @@
 
 ## 新版代码
 
-关于WFResolverTask我们在
+关于dns cache
+
+https://github.com/chanchann/workflow_annotation/blob/main/src_analysis/other_01_cache_lock.md
+
+已经浅谈过，就只有两个地方出现
+
+一个是在`WFResolverTask::dispatch`中取，一个是在`WFResolverTask::dns_callback_internal`中放
+
+```cpp
+DNS_CACHE_LEVEL_0	->	NO cache
+DNS_CACHE_LEVEL_1	->	TTL MIN
+DNS_CACHE_LEVEL_2	->	TTL [DEFAULT]
+DNS_CACHE_LEVEL_3	->	Forever
+```
 
 ```cpp
 void WFResolverTask::dispatch()
 {
+	// 有dns cache
 	if (dns_cache_level_ != DNS_CACHE_LEVEL_0)
 	{
 		DnsCache *dns_cache = WFGlobal::get_dns_cache();
+		// using DnsHandle = LRUHandle<HostPort, DnsCacheValue>;
 		const DnsCache::DnsHandle *addr_handle;
 
 		switch (dns_cache_level_)
 		{
-		case DNS_CACHE_LEVEL_1:
+		case DNS_CACHE_LEVEL_1:  // TTL MIN
 			addr_handle = dns_cache->get_confident(host_, port_);
 			break;
 
-		case DNS_CACHE_LEVEL_2:
+		case DNS_CACHE_LEVEL_2:  // TTL [DEFAULT]
 			addr_handle = dns_cache->get_ttl(host_, port_);
 			break;
 
-		case DNS_CACHE_LEVEL_3:
+		case DNS_CACHE_LEVEL_3:  // Forever
 			addr_handle = dns_cache->get(host_, port_);
 			break;
 
@@ -37,7 +52,7 @@ void WFResolverTask::dispatch()
 			addr_handle = NULL;
 			break;
 		}
-
+		// 如果有cache，直接return
 		if (addr_handle)
 		{
 			auto *route_manager = WFGlobal::get_route_manager();
@@ -61,7 +76,7 @@ void WFResolverTask::dispatch()
 				this->state = WFT_STATE_SUCCESS;
 
 			dns_cache->release(addr_handle);
-			query_dns_ = false;
+			query_dns_ = false;  // 就直接不去查dns了
 			this->subtask_done();
 			return;
 		}

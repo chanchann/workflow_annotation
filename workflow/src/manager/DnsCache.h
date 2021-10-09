@@ -62,7 +62,7 @@ public:
 
 	// get handler
 	// Need call release when handle no longer needed
-	//Handle *get(const KEY &key);
+	// Handle *get(const KEY &key);
 	const DnsHandle *get(const HostPort& host_port)
 	{
 		return cache_pool_.get(host_port);
