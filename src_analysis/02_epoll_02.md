@@ -1,6 +1,8 @@
 #! https://zhuanlan.zhihu.com/p/415001197
 # workflow源码解析01 : epoll
 
+项目源码 : https://github.com/sogou/workflow
+
 更加详细的源码注释可看 : https://github.com/chanchann/workflow_annotation
 
 workflow作为一个网络库，必然先从epoll看起，把握了epoll_wait，就能知道怎么处理事件的逻辑。

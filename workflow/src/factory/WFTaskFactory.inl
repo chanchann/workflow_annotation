@@ -340,6 +340,7 @@ void WFComplexClientTask<REQ, RESP, CTX>::init_with_uri()
 template<class REQ, class RESP, typename CTX>
 WFRouterTask *WFComplexClientTask<REQ, RESP, CTX>::route()
 {
+	LOG_TRACE("WFComplexClientTask route");
 	auto&& cb = std::bind(&WFComplexClientTask::router_callback,
 						  this,
 						  std::placeholders::_1);
@@ -352,9 +353,10 @@ WFRouterTask *WFComplexClientTask<REQ, RESP, CTX>::route()
 		.tracing		=	&tracing_,
 	};
 
-	if (!ns_policy_)   // 刚初始化的时候为Null
+	if (!ns_policy_)   // http task刚初始化的时候为Null 
 	{
-		
+		// 如果没有policy的话，在name service里拿一个出来兜底
+		// 默认policy为 WFDnsResolver
 		WFNameService *ns = WFGlobal::get_name_service();
 		ns_policy_ = ns->get_policy(uri_.host ? uri_.host : "");
 	}
@@ -365,9 +367,11 @@ WFRouterTask *WFComplexClientTask<REQ, RESP, CTX>::route()
 template<class REQ, class RESP, typename CTX>
 void WFComplexClientTask<REQ, RESP, CTX>::router_callback(WFRouterTask *task)
 {
-	this->state = task->get_state();
+	LOG_TRACE("WFComplexClientTask router_callback");
+	// 在此处改变了状态
+	this->state = task->get_state();    // 这里就是把WFRouterTask的状态给WFComplexClientTask的state
 	if (this->state == WFT_STATE_SUCCESS)
-		route_result_ = std::move(*task->get_result());
+		route_result_ = std::move(*task->get_result());   
 	else if (this->state == WFT_STATE_UNDEFINED)
 	{
 		/* should not happend */
@@ -385,13 +389,13 @@ void WFComplexClientTask<REQ, RESP, CTX>::dispatch()
 	{
 	case WFT_STATE_UNDEFINED:  // 第一次是这个状态
 		LOG_TRACE("dispatch WFT_STATE_UNDEFINED");
-		if (this->check_request())   // 这里直接return true // todo : 这里有何用
+		if (this->check_request())   // 这里直接return true // 其他如mysql这些更为复杂可重写
 		{
 			// 这里 RouteManager::RouteResult route_result_;
 			// 通过dns来产生request_object
 			if (this->route_result_.request_object)   // 第一次走着初始化是空的，直接到下面产生router_task_
 			{
-	case WFT_STATE_SUCCESS:
+	case WFT_STATE_SUCCESS:    // 第二次就直接success了
 				LOG_TRACE("dispatch WFT_STATE_SUCCESS");
 				this->set_request_object(route_result_.request_object);
 				// 此处实际上调用了WFClientTask的父类的父类CommRequest的dispatch
@@ -404,6 +408,7 @@ void WFComplexClientTask<REQ, RESP, CTX>::dispatch()
 			router_task_ = this->route();
 			series_of(this)->push_front(this);
 			series_of(this)->push_front(router_task_);
+			// router_task_ --> WFComplexClientTask（this) 串起来
 		}
 
 	default:

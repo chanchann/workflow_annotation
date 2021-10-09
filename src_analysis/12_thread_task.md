@@ -1,6 +1,8 @@
 #! https://zhuanlan.zhihu.com/p/415833220
 # workflow 源码解析 04 : ThreadTask
 
+项目源码 : https://github.com/sogou/workflow
+
 更加详细的源码注释可看 : https://github.com/chanchann/workflow_annotation
 
 我们先读源码可以先从thread task入手，相对而言比较容易理解（因为不涉及网络相关的内容）
@@ -8,7 +10,6 @@
 最主要的是了解workflow中“任务”到底是什么（透露一下，在SubTask.h中定义 
 
 这部分主要涉及kernel中的线程池和队列
-
 
 ## 先写一个简单的加法运算程序 
 
@@ -267,6 +268,7 @@ private:
 
 再次看下我们的UML
 
+<!-- ![Image](https://pic4.zhimg.com/80/v2-ae19782983cd73dd11071fbbedb35d2e.png) -->
 ![pic](https://github.com/chanchann/workflow_annotation/blob/main/src_analysis/pics/exeReuest.png?raw=true)
 
 其中的handle在子类ExecRequest中实现了,

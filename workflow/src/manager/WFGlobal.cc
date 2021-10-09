@@ -581,6 +581,7 @@ private:
 	WFNameService service_;
 
 public:
+	// 注意此处service_是怎么初始化的
 	__NameServiceManager() : service_(&resolver_) { }
 };
 

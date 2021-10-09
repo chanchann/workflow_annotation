@@ -1,0 +1,449 @@
+tutorial/tutorial-02-redis_cli.cc:30:struct tutorial_task_data
+tutorial/tutorial-03-wget_to_redis.cc:36:struct tutorial_series_context
+tutorial/tutorial-08-matrix_multiply.cc:31:struct MMInput
+tutorial/tutorial-08-matrix_multiply.cc:37:struct MMOutput
+tutorial/tutorial-06-parallel_wget.cc:33:struct tutorial_series_context
+tutorial/tutorial-05-http_proxy.cc:28:struct tutorial_series_context
+tutorial/tutorial-10-user_defined_protocol/message.h:27:class TutorialMessage : ProtocolMessage
+tutorial/tutorial-10-user_defined_protocol/client.cc:31:class MyFactory : WFTaskFactory
+_include/workflow/EncodeStream.h:35:class EncodeStream
+_include/workflow/DnsRoutine.h:25:class DnsInput
+_include/workflow/DnsRoutine.h:53:class DnsOutput
+_include/workflow/DnsRoutine.h:90:class DnsRoutine
+_include/workflow/WFServer.h:32:struct WFServerParams
+_include/workflow/WFServer.h:52:class WFServerBase : CommService
+_include/workflow/WFServer.h:186:class WFServer : WFServerBase
+_include/workflow/IOService_linux.h:29:class IOSession
+_include/workflow/IOService_linux.h:62:class IOService
+_include/workflow/WFFacilities.h:25:class WFFacilities
+_include/workflow/WFFacilities.h:37:	struct WFNetworkResult
+_include/workflow/WFFacilities.h:61:class WaitGroup
+_include/workflow/DnsMessage.h:35:class DnsMessage : ProtocolMessage
+_include/workflow/DnsMessage.h:198:class DnsRequest : DnsMessage
+_include/workflow/DnsMessage.h:216:class DnsResponse : DnsMessage
+_include/workflow/SubTask.h:29:class SubTask
+_include/workflow/SubTask.h:66:class ParallelTask : SubTask
+_include/workflow/MD5Util.h:32:class MD5Util
+_include/workflow/EndpointParams.h:37:struct EndpointParams
+_include/workflow/WFGraphTask.h:27:class WFGraphNode : WFCounterTask
+_include/workflow/WFGraphTask.h:75:class WFGraphTask : WFGenericTask
+_include/workflow/IORequest.h:24:class IORequest : SubTask, IOSession
+_include/workflow/DnsUtil.h:28:class DnsUtil
+_include/workflow/DnsUtil.h:37:class DnsResultCursor
+_include/workflow/mysql_parser.h:36:struct __mysql_field
+_include/workflow/mysql_parser.h:60:struct __mysql_result_set
+_include/workflow/mysql_parser.h:79:struct __mysql_result_set_cursor
+_include/workflow/mysql_parser.h:85:struct __mysql_parser
+_include/workflow/WFTask.h:61:class WFThreadTask : ExecRequest
+_include/workflow/WFTask.h:128:class WFMultiThreadTask : ParallelTask
+_include/workflow/WFTask.h:220:class WFNetworkTask : CommRequest
+_include/workflow/WFTask.h:346:class WFTimerTask : SleepRequest
+_include/workflow/WFTask.h:405:class WFFileTask : IORequest
+_include/workflow/WFTask.h:476:class WFGenericTask : SubTask
+_include/workflow/WFTask.h:527:class WFCounterTask : WFGenericTask
+_include/workflow/WFTask.h:578:class WFMailboxTask : WFGenericTask
+_include/workflow/WFTask.h:654:class WFConditional : WFGenericTask
+_include/workflow/WFTask.h:700:class WFGoTask : ExecRequest
+_include/workflow/URIParser.h:38:class ParsedURI
+_include/workflow/URIParser.h:72:class URIParser
+_include/workflow/WFServiceGovernance.h:35:struct AddressParams
+_include/workflow/WFServiceGovernance.h:71:class PolicyAddrParams
+_include/workflow/WFServiceGovernance.h:83:class EndpointAddress
+_include/workflow/WFServiceGovernance.h:94:struct address_entry
+_include/workflow/WFServiceGovernance.h:105:class WFServiceGovernance : WFNSPolicy
+_include/workflow/redis_parser.h:33:struct __redis_reply
+_include/workflow/redis_parser.h:42:struct __redis_parser
+_include/workflow/UpstreamManager.h:79:class UpstreamManager
+_include/workflow/WFDnsClient.h:26:class WFDnsClient
+_include/workflow/mysql_stream.h:23:struct __mysql_stream
+_include/workflow/ProtocolMessage.h:74:class ProtocolMessage : CommMessageOut, CommMessageIn
+_include/workflow/ProtocolMessage.h:107:class Attachment
+_include/workflow/ProtocolMessage.h:167:class ProtocolWrapper : ProtocolMessage
+_include/workflow/WFConnection.h:26:class WFConnection : CommConnection
+_include/workflow/dns_parser.h:160:struct dns_header
+_include/workflow/dns_parser.h:221:struct dns_question
+_include/workflow/dns_parser.h:262:struct dns_record_soa
+_include/workflow/dns_parser.h:282:struct dns_record_srv
+_include/workflow/dns_parser.h:302:struct dns_record_mx
+_include/workflow/dns_parser.h:318:struct dns_record
+_include/workflow/dns_parser.h:327:struct __dns_parser
+_include/workflow/dns_parser.h:343:struct __dns_record_cursor
+_include/workflow/SSLWrapper.h:27:class SSLHandshaker : ProtocolMessage
+_include/workflow/SSLWrapper.h:44:class SSLWrapper : ProtocolWrapper
+_include/workflow/SSLWrapper.h:70:class ServiceSSLWrapper : SSLWrapper
+_include/workflow/Communicator.h:32:class CommConnection
+_include/workflow/Communicator.h:41:class CommTarget
+_include/workflow/Communicator.h:120:class CommMessageOut
+_include/workflow/Communicator.h:129:class CommMessageIn : poller_message_t
+_include/workflow/Communicator.h:157:class CommSession
+_include/workflow/Communicator.h:200:class CommService
+_include/workflow/Communicator.h:280:class SleepSession
+_include/workflow/Communicator.h:301:class Communicator
+_include/workflow/LRUCache.h:34:class LRUHandle
+_include/workflow/LRUCache.h:77:class LRUCache
+_include/workflow/mpoller.h:47:struct __mpoller
+_include/workflow/WFDnsResolver.h:25:class WFDnsResolver : WFNSPolicy
+_include/workflow/http_parser.h:26:struct __http_parser
+_include/workflow/http_parser.h:51:struct __http_header_cursor
+_include/workflow/StringUtil.h:30:class StringUtil
+_include/workflow/WFAlgoTaskFactory.h:30:struct SortInput
+_include/workflow/WFAlgoTaskFactory.h:37:struct SortOutput
+_include/workflow/WFAlgoTaskFactory.h:44:struct MergeInput
+_include/workflow/WFAlgoTaskFactory.h:54:struct MergeOutput
+_include/workflow/WFAlgoTaskFactory.h:87:class WFAlgoTaskFactory
+_include/workflow/SleepRequest.h:25:class SleepRequest : SubTask, SleepSession
+_include/workflow/CommScheduler.h:28:class CommSchedObject
+_include/workflow/CommScheduler.h:49:class CommSchedTarget : CommSchedObject, CommTarget
+_include/workflow/CommScheduler.h:84:class CommSchedGroup : CommSchedObject
+_include/workflow/CommScheduler.h:112:class CommScheduler
+_include/workflow/Workflow.h:34:class Workflow
+_include/workflow/Workflow.h:64:class SeriesWork
+_include/workflow/Workflow.h:195:class ParallelWork : ParallelTask
+_include/workflow/WFFuture.h:26:class WFFuture
+_include/workflow/WFFuture.h:62:class WFPromise
+_include/workflow/WFFuture.h:150:class WFPromise
+_include/workflow/Executor.h:28:class ExecQueue
+_include/workflow/Executor.h:47:class ExecSession
+_include/workflow/Executor.h:65:class Executor
+_include/workflow/list.h:15:struct list_head
+_include/workflow/list.h:218:struct slist_node
+_include/workflow/list.h:222:struct slist_head
+_include/workflow/thrdpool.h:25:struct thrdpool_task
+_include/workflow/WFResourcePool.h:26:class WFResourcePool
+_include/workflow/WFResourcePool.h:34:struct Data
+_include/workflow/WFGlobal.h:47:struct WFGlobalSettings
+_include/workflow/WFGlobal.h:88:class WFGlobal
+_include/workflow/DnsCache.h:34:struct DnsCacheValue
+_include/workflow/DnsCache.h:45:class DnsCache
+_include/workflow/DnsCache.h:154:class ValueDeleter
+_include/workflow/WFNameService.h:32:class WFRouterTask : WFGenericTask
+_include/workflow/WFNameService.h:60:class WFNSTracing
+_include/workflow/WFNameService.h:80:struct WFNSParams
+_include/workflow/WFNameService.h:92:class WFNSPolicy
+_include/workflow/WFNameService.h:117:class WFNameService
+_include/workflow/RedisMessage.h:37:class RedisValue
+_include/workflow/RedisMessage.h:119:class RedisMessage : ProtocolMessage
+_include/workflow/RedisMessage.h:150:class RedisRequest : RedisMessage
+_include/workflow/RedisMessage.h:178:class RedisResponse : RedisMessage
+_include/workflow/UpstreamPolicies.h:37:class UPSAddrParams : PolicyAddrParams
+_include/workflow/UpstreamPolicies.h:50:class UPSGroupPolicy : WFServiceGovernance
+_include/workflow/UpstreamPolicies.h:83:class UPSWeightedRandomPolicy : UPSGroupPolicy
+_include/workflow/UpstreamPolicies.h:109:class UPSVNSWRRPolicy : UPSWeightedRandomPolicy
+_include/workflow/UpstreamPolicies.h:130:class UPSConsistentHashPolicy : UPSGroupPolicy
+_include/workflow/UpstreamPolicies.h:164:class UPSManualPolicy : UPSGroupPolicy
+_include/workflow/HttpMessage.h:41:struct HttpMessageHeader
+_include/workflow/HttpMessage.h:48:class HttpMessage : ProtocolMessage
+_include/workflow/HttpMessage.h:212:class HttpRequest : HttpMessage
+_include/workflow/HttpMessage.h:288:class HttpResponse : HttpMessage
+_include/workflow/MapReduce.h:30:class ReduceIterator
+_include/workflow/MapReduce.h:45:class Reducer
+_include/workflow/WFTaskFactory.h:61:struct FileIOArgs
+_include/workflow/WFTaskFactory.h:69:struct FileVIOArgs
+_include/workflow/WFTaskFactory.h:77:struct FileSyncArgs
+_include/workflow/WFTaskFactory.h:106:class WFTaskFactory
+_include/workflow/WFTaskFactory.h:307:class WFNetworkTaskFactory
+_include/workflow/WFTaskFactory.h:334:class WFThreadTaskFactory
+_include/workflow/CommRequest.h:26:class CommRequest : SubTask, CommSession
+_include/workflow/WFMySQLConnection.h:27:class WFMySQLConnection
+_include/workflow/ExecRequest.h:25:class ExecRequest : SubTask, ExecSession
+_include/workflow/MySQLResult.h:36:class MySQLCell
+_include/workflow/MySQLResult.h:78:class MySQLField
+_include/workflow/MySQLResult.h:118:class MySQLResultCursor
+_include/workflow/RouteManager.h:34:class RouteManager
+_include/workflow/RouteManager.h:37:class RouteResult
+_include/workflow/RouteManager.h:47:class RouteTarget : CommSchedTarget
+_include/workflow/WFMySQLServer.h:40:class WFMySQLServer : WFServer
+_include/workflow/rbtree.h:98:struct rb_node
+_include/workflow/rbtree.h:108:struct rb_root
+_include/workflow/poller.h:48:struct __poller_message
+_include/workflow/poller.h:75:struct poller_data
+_include/workflow/poller.h:119:struct poller_result
+_include/workflow/poller.h:139:struct poller_params
+_include/workflow/poller.h:156:struct poller_result_EXT
+_include/workflow/MySQLMessage.h:36:class MySQLMessage : ProtocolMessage
+_include/workflow/MySQLMessage.h:70:class MySQLRequest : MySQLMessage
+_include/workflow/MySQLMessage.h:88:class MySQLResponse : MySQLMessage
+_include/workflow/HttpUtil.h:122:class HttpUtil
+_include/workflow/HttpUtil.h:128:class HttpHeaderMap
+_include/workflow/HttpUtil.h:143:class HttpHeaderCursor
+_include/workflow/HttpUtil.h:163:class HttpChunkCursor
+src/util/EncodeStream.h:35:class EncodeStream
+src/util/MD5Util.h:32:class MD5Util
+src/util/URIParser.h:38:class ParsedURI
+src/util/URIParser.h:72:class URIParser
+src/util/LRUCache.h:34:class LRUHandle
+src/util/LRUCache.h:77:class LRUCache
+src/util/StringUtil.h:30:class StringUtil
+src/util/EncodeStream.cc:23:struct __buff
+src/util/URIParser.cc:31:class __Init
+src/server/WFServer.h:32:struct WFServerParams
+src/server/WFServer.h:52:class WFServerBase : CommService
+src/server/WFServer.h:186:class WFServer : WFServerBase
+src/server/WFServer.cc:34:class WFServerConnection : WFConnection
+src/server/WFMySQLServer.h:40:class WFMySQLServer : WFServer
+src/manager/WFFacilities.h:25:class WFFacilities
+src/manager/WFFacilities.h:37:	struct WFNetworkResult
+src/manager/WFFacilities.h:61:class WaitGroup
+src/manager/EndpointParams.h:37:struct EndpointParams
+src/manager/UpstreamManager.h:79:class UpstreamManager
+src/manager/UpstreamManager.cc:23:class __UpstreamManager
+src/manager/WFFuture.h:26:class WFFuture
+src/manager/WFFuture.h:62:class WFPromise
+src/manager/WFFuture.h:150:class WFPromise
+src/manager/WFGlobal.cc:50:class __WFGlobal
+src/manager/WFGlobal.cc:190:class __SSLManager
+src/manager/WFGlobal.cc:250:class IOServer : IOService
+src/manager/WFGlobal.cc:302:class __DnsManager
+src/manager/WFGlobal.cc:334:class __CommManager
+src/manager/WFGlobal.cc:436:class __DnsCache
+src/manager/WFGlobal.cc:456:class __ExecManager
+src/manager/WFGlobal.cc:565:class __NameServiceManager
+src/manager/WFGlobal.cc:725:class __DnsClientManager
+src/manager/WFGlobal.h:47:struct WFGlobalSettings
+src/manager/WFGlobal.h:88:class WFGlobal
+src/manager/DnsCache.h:34:struct DnsCacheValue
+src/manager/DnsCache.h:45:class DnsCache
+src/manager/DnsCache.h:154:class ValueDeleter
+src/manager/RouteManager.cc:45:class RouteTargetUDP : RouteManager::RouteTarget
+src/manager/RouteManager.cc:58:class RouteTargetSCTP : RouteManager::RouteTarget
+src/manager/RouteManager.cc:81:class RouteTargetSNI : RouteManager::RouteTarget
+src/manager/RouteManager.cc:103:struct RouteParams
+src/manager/RouteManager.cc:117:class RouteResultEntry
+src/manager/RouteManager.cc:154:struct __breaker_node
+src/manager/RouteManager.h:34:class RouteManager
+src/manager/RouteManager.h:37:class RouteResult
+src/manager/RouteManager.h:47:class RouteTarget : CommSchedTarget
+src/nameservice/WFNameService.cc:25:struct WFNSPolicyEntry
+src/nameservice/WFServiceGovernance.cc:48:class WFSelectorFailTask : WFRouterTask
+src/nameservice/WFServiceGovernance.h:35:struct AddressParams
+src/nameservice/WFServiceGovernance.h:71:class PolicyAddrParams
+src/nameservice/WFServiceGovernance.h:83:class EndpointAddress
+src/nameservice/WFServiceGovernance.h:94:struct address_entry
+src/nameservice/WFServiceGovernance.h:105:class WFServiceGovernance : WFNSPolicy
+src/nameservice/WFDnsResolver.h:25:class WFDnsResolver : WFNSPolicy
+src/nameservice/UpstreamPolicies.cc:25:class EndpointGroup
+src/nameservice/WFNameService.h:32:class WFRouterTask : WFGenericTask
+src/nameservice/WFNameService.h:60:class WFNSTracing
+src/nameservice/WFNameService.h:80:struct WFNSParams
+src/nameservice/WFNameService.h:92:class WFNSPolicy
+src/nameservice/WFNameService.h:117:class WFNameService
+src/nameservice/WFDnsResolver.cc:79:struct DnsContext
+src/nameservice/WFDnsResolver.cc:226:class WFResolverTask : WFRouterTask
+src/nameservice/UpstreamPolicies.h:37:class UPSAddrParams : PolicyAddrParams
+src/nameservice/UpstreamPolicies.h:50:class UPSGroupPolicy : WFServiceGovernance
+src/nameservice/UpstreamPolicies.h:83:class UPSWeightedRandomPolicy : UPSGroupPolicy
+src/nameservice/UpstreamPolicies.h:109:class UPSVNSWRRPolicy : UPSWeightedRandomPolicy
+src/nameservice/UpstreamPolicies.h:130:class UPSConsistentHashPolicy : UPSGroupPolicy
+src/nameservice/UpstreamPolicies.h:164:class UPSManualPolicy : UPSGroupPolicy
+src/algorithm/DnsRoutine.h:25:class DnsInput
+src/algorithm/DnsRoutine.h:53:class DnsOutput
+src/algorithm/DnsRoutine.h:90:class DnsRoutine
+src/algorithm/MapReduce.h:30:class ReduceIterator
+src/algorithm/MapReduce.h:45:class Reducer
+src/client/WFKafkaClient.h:39:class WFKafkaTask : WFGenericTask
+src/client/WFKafkaClient.h:114:class WFKafkaClient
+src/client/WFKafkaClient.cc:47:class KafkaLockStatus
+src/client/WFKafkaClient.cc:115:class KafkaMember
+src/client/WFKafkaClient.cc:157:class KafkaHeartbeat
+src/client/WFKafkaClient.cc:240:class ComplexKafkaTask : WFKafkaTask
+src/client/WFDnsClient.h:26:class WFDnsClient
+src/client/WFMySQLConnection.h:27:class WFMySQLConnection
+src/client/WFDnsClient.cc:30:class DnsParams
+src/client/WFDnsClient.cc:34:struct dns_params
+src/client/WFDnsClient.cc:96:struct DnsStatus
+src/protocol/KafkaMessage.cc:1306:struct KafkaBatchRecordHeader
+src/protocol/redis_parser.c:39:struct __read_record
+src/protocol/DnsMessage.h:35:class DnsMessage : ProtocolMessage
+src/protocol/DnsMessage.h:198:class DnsRequest : DnsMessage
+src/protocol/DnsMessage.h:216:class DnsResponse : DnsMessage
+src/protocol/dns_parser.c:29:struct __dns_record_entry
+src/protocol/DnsUtil.h:28:class DnsUtil
+src/protocol/DnsUtil.h:37:class DnsResultCursor
+src/protocol/mysql_parser.h:36:struct __mysql_field
+src/protocol/mysql_parser.h:60:struct __mysql_result_set
+src/protocol/mysql_parser.h:79:struct __mysql_result_set_cursor
+src/protocol/mysql_parser.h:85:struct __mysql_parser
+src/protocol/redis_parser.h:33:struct __redis_reply
+src/protocol/redis_parser.h:42:struct __redis_parser
+src/protocol/KafkaDataTypes.h:41:class KafkaList
+src/protocol/KafkaDataTypes.h:191:class KafkaMap
+src/protocol/KafkaDataTypes.h:351:class KafkaConfig
+src/protocol/KafkaDataTypes.h:623:class KafkaRecord
+src/protocol/KafkaDataTypes.h:749:class KafkaToppar
+src/protocol/KafkaDataTypes.h:933:class KafkaBroker
+src/protocol/KafkaDataTypes.h:1106:class KafkaMeta
+src/protocol/KafkaDataTypes.h:1234:class KafkaCgroup
+src/protocol/KafkaDataTypes.h:1350:class KafkaBlock
+src/protocol/KafkaDataTypes.h:1445:class KafkaMetaSubscriber
+src/protocol/KafkaDataTypes.h:1483:class KafkaBuffer
+src/protocol/KafkaDataTypes.h:1595:class KafkaSnappySink : snappy::Sink
+src/protocol/KafkaDataTypes.h:1622:class KafkaSnappySource : snappy::Source
+src/protocol/mysql_stream.h:23:struct __mysql_stream
+src/protocol/ProtocolMessage.h:74:class ProtocolMessage : CommMessageOut, CommMessageIn
+src/protocol/ProtocolMessage.h:107:class Attachment
+src/protocol/ProtocolMessage.h:167:class ProtocolWrapper : ProtocolMessage
+src/protocol/dns_parser.h:160:struct dns_header
+src/protocol/dns_parser.h:221:struct dns_question
+src/protocol/dns_parser.h:262:struct dns_record_soa
+src/protocol/dns_parser.h:282:struct dns_record_srv
+src/protocol/dns_parser.h:302:struct dns_record_mx
+src/protocol/dns_parser.h:318:struct dns_record
+src/protocol/dns_parser.h:327:struct __dns_parser
+src/protocol/dns_parser.h:343:struct __dns_record_cursor
+src/protocol/SSLWrapper.h:27:class SSLHandshaker : ProtocolMessage
+src/protocol/SSLWrapper.h:44:class SSLWrapper : ProtocolWrapper
+src/protocol/SSLWrapper.h:70:class ServiceSSLWrapper : SSLWrapper
+src/protocol/KafkaMessage.h:36:class KafkaMessage : ProtocolMessage
+src/protocol/KafkaMessage.h:212:class KafkaRequest : KafkaMessage
+src/protocol/KafkaMessage.h:234:class KafkaResponse : KafkaRequest
+src/protocol/http_parser.h:26:struct __http_parser
+src/protocol/http_parser.h:51:struct __http_header_cursor
+src/protocol/kafka_parser.h:204:struct __kafka_api_version
+src/protocol/kafka_parser.h:211:struct __kafka_api_t
+src/protocol/kafka_parser.h:218:struct __kafka_parser
+src/protocol/kafka_parser.h:236:struct __kafka_scram
+src/protocol/kafka_parser.h:248:struct __kafka_sasl
+src/protocol/kafka_parser.h:256:struct __kafka_config
+src/protocol/kafka_parser.h:289:struct __kafka_broker
+src/protocol/kafka_parser.h:302:struct __kafka_partition
+src/protocol/kafka_parser.h:313:struct __kafka_meta
+src/protocol/kafka_parser.h:323:struct __kafka_topic_partition
+src/protocol/kafka_parser.h:338:struct __kafka_record_header
+src/protocol/kafka_parser.h:349:struct __kafka_record
+src/protocol/kafka_parser.h:364:struct __kafka_memeber
+src/protocol/kafka_parser.h:378:struct __kafka_group_protocol
+src/protocol/kafka_parser.h:385:struct __kafka_cgroup
+src/protocol/kafka_parser.h:402:struct __kafka_block
+src/protocol/HttpMessage.cc:27:struct HttpMessageBlock
+src/protocol/KafkaResult.h:30:class KafkaResult
+src/protocol/RedisMessage.h:37:class RedisValue
+src/protocol/RedisMessage.h:119:class RedisMessage : ProtocolMessage
+src/protocol/RedisMessage.h:150:class RedisRequest : RedisMessage
+src/protocol/RedisMessage.h:178:class RedisResponse : RedisMessage
+src/protocol/HttpMessage.h:41:struct HttpMessageHeader
+src/protocol/HttpMessage.h:48:class HttpMessage : ProtocolMessage
+src/protocol/HttpMessage.h:212:class HttpRequest : HttpMessage
+src/protocol/HttpMessage.h:288:class HttpResponse : HttpMessage
+src/protocol/http_parser.c:48:struct __header_line
+src/protocol/MySQLResult.h:36:class MySQLCell
+src/protocol/MySQLResult.h:78:class MySQLField
+src/protocol/MySQLResult.h:118:class MySQLResultCursor
+src/protocol/MySQLMessage.h:36:class MySQLMessage : ProtocolMessage
+src/protocol/MySQLMessage.h:70:class MySQLRequest : MySQLMessage
+src/protocol/MySQLMessage.h:88:class MySQLResponse : MySQLMessage
+src/protocol/HttpUtil.h:122:class HttpUtil
+src/protocol/HttpUtil.h:128:class HttpHeaderMap
+src/protocol/HttpUtil.h:143:class HttpHeaderCursor
+src/protocol/HttpUtil.h:163:class HttpChunkCursor
+src/kernel/Communicator.cc:39:struct CommConnEntry
+src/kernel/Communicator.cc:241:class CommServiceTarget : CommTarget
+src/kernel/IOService_linux.h:29:class IOSession
+src/kernel/IOService_linux.h:62:class IOService
+src/kernel/SubTask.h:29:class SubTask
+src/kernel/SubTask.h:66:class ParallelTask : SubTask
+src/kernel/IORequest.h:24:class IORequest : SubTask, IOSession
+src/kernel/IOService_thread.h:30:class IOSession
+src/kernel/IOService_thread.h:69:class IOService
+src/kernel/poller.c:57:struct __poller_node
+src/kernel/poller.c:75:struct __poller
+src/kernel/poller.c:972:struct __poller
+src/kernel/poller.c:1001:struct __poller_node
+src/kernel/Communicator.h:32:class CommConnection
+src/kernel/Communicator.h:41:class CommTarget
+src/kernel/Communicator.h:120:class CommMessageOut
+src/kernel/Communicator.h:129:class CommMessageIn : poller_message_t
+src/kernel/Communicator.h:157:class CommSession
+src/kernel/Communicator.h:200:class CommService
+src/kernel/Communicator.h:280:class SleepSession
+src/kernel/Communicator.h:301:class Communicator
+src/kernel/mpoller.h:47:struct __mpoller
+src/kernel/thrdpool.c:26:struct __thrdpool
+src/kernel/thrdpool.c:37:struct __thrdpool_task_entry
+src/kernel/thrdpool.c:58:struct __thrdpool_task_entry
+src/kernel/thrdpool.c:90:struct thrdpool_task
+src/kernel/SleepRequest.h:25:class SleepRequest : SubTask, SleepSession
+src/kernel/CommScheduler.h:28:class CommSchedObject
+src/kernel/CommScheduler.h:49:class CommSchedTarget : CommSchedObject, CommTarget
+src/kernel/CommScheduler.h:84:class CommSchedGroup : CommSchedObject
+src/kernel/CommScheduler.h:112:class CommScheduler
+src/kernel/IOService_linux.cc:90:struct io_iocb_poll
+src/kernel/IOService_linux.cc:94:struct io_iocb_sockaddr
+src/kernel/IOService_linux.cc:99:struct io_iocb_common
+src/kernel/IOService_linux.cc:108:struct io_iocb_vector
+src/kernel/IOService_linux.cc:114:struct iocb
+src/kernel/IOService_linux.cc:132:struct io_event
+src/kernel/Executor.h:28:class ExecQueue
+src/kernel/Executor.h:47:class ExecSession
+src/kernel/Executor.h:65:class Executor
+src/kernel/list.h:15:struct list_head
+src/kernel/list.h:218:struct slist_node
+src/kernel/list.h:222:struct slist_head
+src/kernel/thrdpool.h:25:struct thrdpool_task
+src/kernel/CommRequest.h:26:class CommRequest : SubTask, CommSession
+src/kernel/Executor.cc:26:struct ExecTaskEntry
+src/kernel/msgqueue.c:36:struct __msgqueue
+src/kernel/ExecRequest.h:25:class ExecRequest : SubTask, ExecSession
+src/kernel/rbtree.h:98:struct rb_node
+src/kernel/rbtree.h:108:struct rb_root
+src/kernel/poller.h:48:struct __poller_message
+src/kernel/poller.h:75:struct poller_data
+src/kernel/poller.h:119:struct poller_result
+src/kernel/poller.h:139:struct poller_params
+src/kernel/poller.h:156:struct poller_result_EXT
+src/factory/WFResourcePool.cc:24:class __WFConditional : WFConditional
+src/factory/HttpTaskImpl.cc:38:class ComplexHttpTask : WFComplexClientTask
+src/factory/HttpTaskImpl.cc:450:class ComplexHttpProxyTask : ComplexHttpTask
+src/factory/HttpTaskImpl.cc:485:struct SSLConnection : WFConnection
+src/factory/HttpTaskImpl.cc:848:class WFHttpServerTask : WFServerTask
+src/factory/WFGraphTask.h:27:class WFGraphNode : WFCounterTask
+src/factory/WFGraphTask.h:75:class WFGraphTask : WFGenericTask
+src/factory/WFTask.h:61:class WFThreadTask : ExecRequest
+src/factory/WFTask.h:128:class WFMultiThreadTask : ParallelTask
+src/factory/WFTask.h:220:class WFNetworkTask : CommRequest
+src/factory/WFTask.h:346:class WFTimerTask : SleepRequest
+src/factory/WFTask.h:405:class WFFileTask : IORequest
+src/factory/WFTask.h:476:class WFGenericTask : SubTask
+src/factory/WFTask.h:527:class WFCounterTask : WFGenericTask
+src/factory/WFTask.h:578:class WFMailboxTask : WFGenericTask
+src/factory/WFTask.h:654:class WFConditional : WFGenericTask
+src/factory/WFTask.h:700:class WFGoTask : ExecRequest
+src/factory/MySQLTaskImpl.cc:39:class ComplexMySQLTask : WFComplexClientTask
+src/factory/MySQLTaskImpl.cc:62:struct SSLConnection : WFConnection
+src/factory/MySQLTaskImpl.cc:85:struct MySSLWrapper : SSLWrapper
+src/factory/MySQLTaskImpl.cc:96:struct handshake_ctx
+src/factory/MySQLTaskImpl.cc:712:class WFMySQLServerTask : WFServerTask
+src/factory/WFConnection.h:26:class WFConnection : CommConnection
+src/factory/WFAlgoTaskFactory.h:30:struct SortInput
+src/factory/WFAlgoTaskFactory.h:37:struct SortOutput
+src/factory/WFAlgoTaskFactory.h:44:struct MergeInput
+src/factory/WFAlgoTaskFactory.h:54:struct MergeOutput
+src/factory/WFAlgoTaskFactory.h:87:class WFAlgoTaskFactory
+src/factory/FileTaskImpl.cc:25:class WFFilepreadTask : WFFileIOTask
+src/factory/FileTaskImpl.cc:47:class WFFilepwriteTask : WFFileIOTask
+src/factory/FileTaskImpl.cc:69:class WFFilepreadvTask : WFFileVIOTask
+src/factory/FileTaskImpl.cc:91:class WFFilepwritevTask : WFFileVIOTask
+src/factory/FileTaskImpl.cc:113:class WFFilefsyncTask : WFFileSyncTask
+src/factory/FileTaskImpl.cc:130:class WFFilefdsyncTask : WFFileSyncTask
+src/factory/FileTaskImpl.cc:149:class __WFFilepreadTask : WFFilepreadTask
+src/factory/FileTaskImpl.cc:184:class __WFFilepwriteTask : WFFilepwriteTask
+src/factory/FileTaskImpl.cc:219:class __WFFilepreadvTask : WFFilepreadvTask
+src/factory/FileTaskImpl.cc:255:class __WFFilepwritevTask : WFFilepwritevTask
+src/factory/Workflow.h:34:class Workflow
+src/factory/Workflow.h:64:class SeriesWork
+src/factory/Workflow.h:195:class ParallelWork : ParallelTask
+src/factory/WFResourcePool.h:26:class WFResourcePool
+src/factory/WFResourcePool.h:34:struct Data
+src/factory/WFTaskFactory.h:61:struct FileIOArgs
+src/factory/WFTaskFactory.h:69:struct FileVIOArgs
+src/factory/WFTaskFactory.h:77:struct FileSyncArgs
+src/factory/WFTaskFactory.h:106:class WFTaskFactory
+src/factory/WFTaskFactory.h:307:class WFNetworkTaskFactory
+src/factory/WFTaskFactory.h:334:class WFThreadTaskFactory
+src/factory/WFTaskFactory.cc:28:class __WFTimerTask : WFTimerTask
+src/factory/WFTaskFactory.cc:80:struct __counter_node
+src/factory/WFTaskFactory.cc:87:struct __CounterList
+src/factory/WFTaskFactory.cc:115:class __CounterMap
+src/factory/WFTaskFactory.cc:145:class __WFCounterTask : WFCounterTask
+src/factory/WFTaskFactory.cc:348:class __WFMailboxTask : WFMailboxTask
+src/factory/RedisTaskImpl.cc:33:class ComplexRedisTask : WFComplexClientTask
+src/factory/KafkaTaskImpl.cc:53:struct KafkaConnectionInfo

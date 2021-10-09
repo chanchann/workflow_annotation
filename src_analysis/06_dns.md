@@ -1,6 +1,8 @@
-## dns
+# workflow源码解析10 : dns
 
-注释部分都在workflow文件夹中的源码中
+项目源码 : https://github.com/sogou/workflow
+
+更加详细的源码注释可看 : https://github.com/chanchann/workflow_annotation
 
 协议rfc : https://datatracker.ietf.org/doc/html/rfc1035
 
@@ -17,7 +19,7 @@ perl calltree.pl "(?)dns" "" 1 1 2
   ├── WFGlobal::get_dns_client
   │   ├── WFGlobal::get_dns_client      [vim src/manager/WFGlobal.cc +718]
   │   └── WFResolverTask::dispatch      [vim src/nameservice/WFDnsResolver.cc +271]
-  ├── WFGlobal::get_dns_executor
+  ├── WFGlobal::get_dns_executors
   │   ├── get_dns_queue [vim src/manager/WFGlobal.cc +305]
   │   ├── get_dns_executor      [vim src/manager/WFGlobal.cc +374]
   │   ├── WFGlobal::get_dns_executor    [vim src/manager/WFGlobal.cc +768]

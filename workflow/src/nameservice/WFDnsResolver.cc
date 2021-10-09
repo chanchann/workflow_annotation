@@ -492,6 +492,7 @@ void WFResolverTask::dns_callback_internal(DnsOutput *dns_out,
 
 void WFResolverTask::dns_single_callback(WFDnsTask *dns_task)
 {
+	// 此处代码有个优化细节 : todo分析
 	WFGlobal::get_dns_resolver()->post_cond();
 
 	if (dns_task->get_state() == WFT_STATE_SUCCESS)
@@ -508,10 +509,10 @@ void WFResolverTask::dns_single_callback(WFDnsTask *dns_task)
 		this->error = dns_task->get_error();
 	}
 
-	if (this->callback)
-		this->callback(this);
+ 	if (this->callback)   
+		this->callback(this); 
 
-	delete this;
+	delete this; // 注意这里delete this，调用了resolver的callback,不用再次把resolver task push_front到前面了
 }
 
 void WFResolverTask::dns_partial_callback(WFDnsTask *dns_task)
@@ -603,6 +604,7 @@ WFDnsResolver::create(const struct WFNSParams *params, int dns_cache_level,
 					  const struct EndpointParams *endpoint_params,
 					  router_callback_t&& callback)
 {
+	LOG_TRACE("WFDnsResolver::create");
 	return new WFResolverTask(params, dns_cache_level, dns_ttl_default,
 							  dns_ttl_min, endpoint_params,
 							  std::move(callback));
@@ -611,9 +613,21 @@ WFDnsResolver::create(const struct WFNSParams *params, int dns_cache_level,
 WFRouterTask *WFDnsResolver::create_router_task(const struct WFNSParams *params,
 												router_callback_t callback)
 {
+	LOG_TRACE("WFDnsResolver::create_router_task");
+
 	const auto *settings = WFGlobal::get_global_settings();
 	unsigned int dns_ttl_default = settings->dns_ttl_default;
 	unsigned int dns_ttl_min = settings->dns_ttl_min;
+	/*
+	struct EndpointParams
+	{
+		size_t max_connections;
+		int connect_timeout;
+		int response_timeout;
+		int ssl_connect_timeout;
+		bool use_tls_sni;
+	};
+	*/
 	const struct EndpointParams *endpoint_params = &settings->endpoint_params;
 	int dns_cache_level = params->retry_times == 0 ? DNS_CACHE_LEVEL_2 :
 													 DNS_CACHE_LEVEL_1;
@@ -624,5 +638,6 @@ WFRouterTask *WFDnsResolver::create_router_task(const struct WFNSParams *params,
 WFDnsResolver::WFDnsResolver() :
 	respool(WFGlobal::get_global_settings()->dns_server_params.max_connections)
 {
+	LOG_TRACE("WFDnsResolver create");
 }
 

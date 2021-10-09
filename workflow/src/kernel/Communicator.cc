@@ -402,6 +402,9 @@ int Communicator::send_message_sync(struct iovec vectors[], int cnt,
 
 	while (cnt > 0)
 	{
+		// On success, readv() and preadv() return the number of bytes read; 
+		// writev() and pwritev() return the number of bytes written. 
+		// On error, -1 is returned, and errno is set appropriately.
 		n = writev(entry->sockfd, vectors, cnt <= IOV_MAX ? cnt : IOV_MAX);
 		if (n < 0)
 			return errno == EAGAIN ? cnt : -1;

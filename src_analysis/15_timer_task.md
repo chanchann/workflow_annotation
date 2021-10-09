@@ -1,6 +1,8 @@
 #! https://zhuanlan.zhihu.com/p/416865725
 # workflow 源码解析 07 : TimerTask
 
+项目源码 : https://github.com/sogou/workflow
+
 更加详细的源码注释可看 : https://github.com/chanchann/workflow_annotation
 
 看Timer task，可以了解下怎么实现一个异步的定时器，这个时候就开始接触Communicator和Session了

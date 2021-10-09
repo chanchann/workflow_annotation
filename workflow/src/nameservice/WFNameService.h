@@ -113,17 +113,18 @@ public:
 
 public:
 	virtual ~WFNSPolicy() { }
+	WFNSPolicy() { LOG_TRACE("WFNSPolicy create"); }
 };
 
 class WFNameService
 {
 public:
 	int add_policy(const char *name, WFNSPolicy *policy);
-	WFNSPolicy *get_policy(const char *name);
+	WFNSPolicy *get_policy(const char *name);  
 	WFNSPolicy *del_policy(const char *name);
 
 private:
-	WFNSPolicy *default_policy;
+	WFNSPolicy *default_policy;   // 默认 &WFDnsResolver
 	struct rb_root root;
 	pthread_rwlock_t rwlock;
 
@@ -134,6 +135,7 @@ public:
 	WFNameService(WFNSPolicy *default_policy) :
 		rwlock(PTHREAD_RWLOCK_INITIALIZER)
 	{
+		LOG_TRACE("WFNameService create");
 		this->root.rb_node = NULL;
 		this->default_policy = default_policy;
 	}
