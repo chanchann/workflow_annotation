@@ -554,9 +554,37 @@ Q : 如果在series里加入一个不会被执行的counter，那岂不是一直
 
 需要自己在server的process函数里拿到request的path，自己进行解析和分发：task->get_req()->get_request_uri()可以拿到path部分进行不同restful路径的逻辑分发
 
-拿到uri后怎么获得path，query_param ? 另外http怎么取得链接的i地址，端口号 ?
+那么
+
+拿到uri后怎么获得path，query_param ? 另外http怎么取得链接的ip地址，端口号 ?
 
 get_request_uri()这个函数可以拿到path和query_param，你需要自己切一下，比如127.0.0.1:1412/a?b=c你可以拿到/a?b=c。
+
+而URIParser 提供的接口中，都是需要query而不是get_request_uri获得的path+query_param
+
+```cpp
+static std::map<std::string, std::vector<std::string>>
+split_query_strict(const std::string &query);
+
+static std::map<std::string, std::string>
+split_query(const std::string &query);
+```
+
+所以我们需要自己动手切，简单做法是:
+
+```cpp
+const char *uri = req->get_request_uri();
+const char *p = uri;
+
+printf("Request-URI: %s\n", uri);
+while (*p && *p != '?')
+    p++;
+
+std::string abs_path(uri, p - uri);
+abs_path = root + abs_path;
+
+std::string query(p+1);
+```
 
 但ip和端口目前没有接口，你可以通过派生实现new_connection做
 

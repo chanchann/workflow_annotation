@@ -97,6 +97,11 @@ CommMessageIn *ComplexDnsTask::message_in()
 	return this->WFClientTask::message_in();
 }
 
+/**
+ * @brief client init的时候调用
+ * @note   
+ * @retval 
+ */
 bool ComplexDnsTask::init_success()
 {
 
@@ -116,7 +121,7 @@ bool ComplexDnsTask::init_success()
 		TransportType type = this->get_transport_type();
 		struct addrinfo *addr;
 		int ret;
-
+		
 		ret = getaddrinfo(uri_.host, uri_.port, &hints, &addr);
 		if (ret != 0)
 		{
