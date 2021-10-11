@@ -583,8 +583,12 @@ while (*p && *p != '?')
 std::string abs_path(uri, p - uri);
 abs_path = root + abs_path;
 
-std::string query(p+1);
+std::string query(p+1);  
 ```
+
+demo : 
+
+https://github.com/chanchann/workflow_annotation/blob/main/demos/27_parse_uri/27_request_uri_split.cc
 
 但ip和端口目前没有接口，你可以通过派生实现new_connection做
 
