@@ -657,6 +657,7 @@ class WFConditional : public WFGenericTask
 public:
 	virtual void signal(void *msg)
 	{
+		LOG_TRACE("WFConditional signal");
 		*this->msgbuf = msg;
 		// https://stackoverflow.com/questions/7007834/what-is-the-use-case-for-the-atomic-exchange-read-write-operation
 		// Return value
@@ -669,6 +670,7 @@ public:
 protected:
 	virtual void dispatch()
 	{
+		LOG_TRACE("WFConditional dispatch");
 		series_of(this)->push_front(this->task);
 		this->task = NULL;  // todo : 不置NULL 又如何
 		if (this->flag.exchange(true))

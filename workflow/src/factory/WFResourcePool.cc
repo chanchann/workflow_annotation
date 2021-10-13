@@ -30,19 +30,21 @@ public:
 
 public:
 	virtual void dispatch();
-	virtual void signal(void *res) { }
+	virtual void signal(void *res) { LOG_TRACE("__WFConditional::signal"); }
 
 public:
 	__WFConditional(SubTask *task, void **resbuf,
 					struct WFResourcePool::Data *data) :
 		WFConditional(task, resbuf)
 	{
+		LOG_TRACE("__WFConditional creator");
 		this->data = data;
 	}
 };
 
 void __WFConditional::dispatch()
 {
+	LOG_TRACE("__WFConditional::dispatch");
 	struct WFResourcePool::Data *data = this->data;
 
 	data->mutex.lock();
@@ -57,11 +59,13 @@ void __WFConditional::dispatch()
 
 WFConditional *WFResourcePool::get(SubTask *task, void **resbuf)
 {
+	LOG_TRACE("WFResourcePool::get");
 	return new __WFConditional(task, resbuf, &this->data);
 }
 
 void WFResourcePool::create(size_t n)
 {
+	LOG_TRACE("WFResourcePool::create");
 	this->data.res = new void *[n];   // 就是创建n个void * 的数组
 	this->data.value = n;   // 资源初始化大小为n
 	this->data.index = 0;   
@@ -71,23 +75,26 @@ void WFResourcePool::create(size_t n)
 
 WFResourcePool::WFResourcePool(void *const *res, size_t n)
 {
+	LOG_TRACE("WFResourcePool creator");
 	this->create(n);
 	memcpy(this->data.res, res, n * sizeof (void *));
 }
 
 WFResourcePool::WFResourcePool(size_t n)
 {
+	LOG_TRACE("WFResourcePool creator");
 	this->create(n);
 	memset(this->data.res, 0, n * sizeof (void *));
 }
 
 void WFResourcePool::post(void *res)
 {
+	LOG_TRACE("WFResourcePool post");
 	struct WFResourcePool::Data *data = &this->data;
 	WFConditional *cond;
 
 	data->mutex.lock();
-	if (++data->value <= 0)
+	if (++data->value <= 0)   // 如果资源池排队很多，已经大大亏空了，我们放一个资源回去，就得有一个队列中的任务来执行
 	{
 		cond = list_entry(data->wait_list.next, __WFConditional, list);
 		list_del(data->wait_list.next);
@@ -95,7 +102,7 @@ void WFResourcePool::post(void *res)
 	else
 	{
 		cond = NULL;
-		this->push(res);
+		this->push(res); 
 	}
 
 	data->mutex.unlock();

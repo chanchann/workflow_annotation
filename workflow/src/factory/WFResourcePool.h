@@ -47,11 +47,13 @@ public:
 private:
 	virtual void *pop()
 	{
+		LOG_TRACE("WFResourcePool:: pop");
 		return this->data.res[this->data.index++];
 	}
 
 	virtual void push(void *res)
 	{
+		LOG_TRACE("WFResourcePool:: push");
 		this->data.res[--this->data.index] = res;
 	}
 

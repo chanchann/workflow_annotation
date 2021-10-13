@@ -17,7 +17,6 @@
 ## 接口
 
 ```cpp
-
 class WFResourcePool
 {
 public:
@@ -158,7 +157,7 @@ void WFResourcePool::create(size_t n)
 }
 ```
 
-可以看出，这个pool就是维护了一个data, 这个data就是一个wait_list
+可以看出，这个pool就是维护了一个data, 这个data其实就是一个wait_list(里面包含了这个list的index和资源大小情况等信息)
 
 ## get
 
@@ -200,13 +199,11 @@ public:
 
 1. 继承自WFConditional(详见WFConditional解析模块的文章)
 
-2. 是用来被串起来的class
+2. 是用来被串起来的class(其实wait_list里面串的就是这些__WFConditional)
 
-3. struct WFResourcePool::Data *data;
+3. struct WFResourcePool::Data *data; (这个data就是资源池的data)
 
 4. 实现重写了dispatch和signal(且这个为空)
-
-5. 这个__WFConditional的data(wait_list)就是我们资源池的data(wait_list)
 
 细节我们先忽略，我们知道了这里我们`WFConditional *cond_task_1`就是这里new的`__WFConditional`
 
@@ -230,7 +227,11 @@ void __WFConditional::dispatch()
 }
 ```
 
-可以看出，他在这里判断还是否有资源，如果有，就signal pop出来的这个任务，否则就加入到wait_list中
+可以看出，他在这里判断还是否有资源，
+
+如果有，就signal pop出来之前还在wait_list排队的任务(先来后到)
+
+否则就直接加入到wait_list中
 
 - 我们这里`cond_task_2` 先执行，到这里发现我们有资源(`--data->value >= 0`)
 
@@ -246,7 +247,7 @@ void __WFConditional::dispatch()
 
 我们就把他串到资源池的wait_list中去`list_add_tail(&this->list, &data->wait_list);`
 
-最后我们都要执行`this->WFConditional::dispatch();`
+- 最后我们都要执行`this->WFConditional::dispatch();`
 
 ## data->pop()
 
@@ -265,7 +266,7 @@ virtual void *pop()
 }
 ```
 
-我们这里的demo其实就是把资源池当个cnt pool来用，里面的元素就是为`void *`, 我们就是利用value判断是否有资源
+我们这里的demo其实就是把资源池当个cnt pool来用，我们就是利用value判断是否有资源
 
 这里就是一个FIFO队列，我return当前，然后移动index
 
@@ -288,7 +289,11 @@ https://en.cppreference.com/w/cpp/atomic/atomic/exchange
 
 这里`flag.exchange(true)` 的`return value` 是 `The value of the atomic variable before the call.`
 
-这里是没有走到subtask_done的(todo : 这里为何这样设计)
+这次是需要第二次走到这里才算`subtask_done`的
+
+而第一次都是下面的`WFConditional::dispatch()` store成true的，也就是说，第一次是先走到这个conditon task 的dispatch
+
+然后第二次被signal才算去走完任务。
 
 ## WFConditional::dispatch()
 
@@ -296,14 +301,40 @@ https://en.cppreference.com/w/cpp/atomic/atomic/exchange
 virtual void dispatch()
 {
     series_of(this)->push_front(this->task);
-    this->task = NULL;
+    this->task = NULL; 
     if (this->flag.exchange(true))
         this->subtask_done();
 }
 ```
 
-如果是先执行的`cond_task_2` 走到这里，在这之前先插入我们真正需要执行的task(http_task task2)
+如果是先执行的`cond_task_2` 走到这里，在这`cond_task_2`之前先插入我们真正需要执行的`task(http_task task2)`
 
-然后此时`exchange`才算结束。
+如果是后执行的`cond_task_1`，已经加入了wait_list队列中。也在这`cond_task_1`之前先插入我们真正需要执行的`task(http_task task1)`
 
-如果是后执行的`cond_task_1`，已经加入了wait_list队列中。
+## post
+
+我们来看看把资源放回去
+
+```cpp
+void WFResourcePool::post(void *res)
+{
+	struct WFResourcePool::Data *data = &this->data;
+	WFConditional *cond;
+
+	data->mutex.lock();
+	if (++data->value <= 0)    
+	{
+		cond = list_entry(data->wait_list.next, __WFConditional, list);
+		list_del(data->wait_list.next);
+	}
+	else
+	{
+		cond = NULL;
+		this->push(res);
+	}
+
+	data->mutex.unlock();
+	if (cond)
+		cond->WFConditional::signal(res);
+}
+```
