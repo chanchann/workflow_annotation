@@ -25,10 +25,6 @@ void go_func(int uid, protocol::HttpResponse *resp)
     resp->append_output_body(buf);
 }
 
-struct server_context {
-    int uid;
-};
-
 int main()
 {
     signal(SIGINT, sig_handler);
@@ -42,9 +38,6 @@ int main()
         req->get_parsed_body(&body, &len);
 
         const int uid = atoi(static_cast<const char *>(body));
-        server_context *ctx = new server_context;
-        ctx->uid = uid;
-        server_task->user_data = ctx;
         {
             std::lock_guard<std::mutex> lock(mutex);
             if (!uid_pool_map.count(uid))
@@ -58,19 +51,14 @@ int main()
         WFConditional *cond = uid_pool_map[uid]->get(go_task, &go_task->user_data);
         series_of(server_task)->push_back(cond);
 
-        // 此处有个离谱的坑，此处捕获的uid已经变了，因为这个是在process函数完了再进行
-        // server_task->set_callback([&uid](WFHttpTask *)
-        // { 
-        //     uid_pool_map[uid]->post(nullptr); 
-        //     fprintf(stderr, "post resource back\n");
-        // });
-        server_task->set_callback([](WFHttpTask *server_task)
+        // 此处有个坑，如果是&uid, 那么此处捕获的uid已经变了
+        // 因为这个是在process函数完了再进行, 所以uid已经销毁了，造成segment fault
+        // 所以这里先复制一下
+        server_task->set_callback([=](WFHttpTask *)
         { 
-            auto ctx = static_cast<server_context *>(server_task->user_data);
-            uid_pool_map[ctx->uid]->post(nullptr); 
+            uid_pool_map[uid]->post(nullptr); 
             fprintf(stderr, "post resource back\n");
         });
-
     });
 
     if (server.start(8888) == 0)
