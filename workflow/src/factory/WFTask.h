@@ -662,7 +662,7 @@ public:
 		// https://stackoverflow.com/questions/7007834/what-is-the-use-case-for-the-atomic-exchange-read-write-operation
 		// Return value
 		// The value of the atomic variable before the call
-		// 所以第二次才走到subtask_done
+		// 所以第二次才exchange 才走到 subtask_done
 		if (this->flag.exchange(true))
 			this->subtask_done();
 	}
@@ -672,7 +672,7 @@ protected:
 	{
 		LOG_TRACE("WFConditional dispatch");
 		series_of(this)->push_front(this->task);
-		this->task = NULL;  // todo : 不置NULL 又如何
+		this->task = NULL;  
 		if (this->flag.exchange(true))
 			this->subtask_done();
 	}

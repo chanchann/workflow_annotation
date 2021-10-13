@@ -157,7 +157,7 @@ void WFResourcePool::create(size_t n)
 }
 ```
 
-可以看出，这个pool就是维护了一个data, 这个data其实就是一个wait_list(里面包含了这个list的index和资源大小情况等信息)
+可以看出，这个pool就是维护了一个data, 这个data的核心其实就是一个void* 数组管理资源，一个wait_list，还有一些其他资源信息
 
 ## get
 
@@ -229,9 +229,9 @@ void __WFConditional::dispatch()
 
 可以看出，他在这里判断还是否有资源，
 
-如果有，就signal pop出来之前还在wait_list排队的任务(先来后到)
+如果有，就signal pop出来一个资源池中的资源
 
-否则就直接加入到wait_list中
+否则就直接把这个cond task(cond_task_1)加入到wait_list中
 
 - 我们这里`cond_task_2` 先执行，到这里发现我们有资源(`--data->value >= 0`)
 
@@ -270,7 +270,12 @@ virtual void *pop()
 
 这里就是一个FIFO队列，我return当前，然后移动index
 
-那么这里问题来了 : 这里index总不能无限增大呗，等后面配合着push看看怎么控制的。
+注意我们先判断了资源情况才pop的，所以不存在越界的情况
+
+```cpp
+if (--data->value >= 0)
+	this->WFConditional::signal(data->pop());
+```
 
 ## WFConditional::signal
 
@@ -289,11 +294,17 @@ https://en.cppreference.com/w/cpp/atomic/atomic/exchange
 
 这里`flag.exchange(true)` 的`return value` 是 `The value of the atomic variable before the call.`
 
-这次是需要第二次走到这里才算`subtask_done`的
+这次是需要第二次`flag.exchange`才算`subtask_done`的
 
 而第一次都是下面的`WFConditional::dispatch()` store成true的，也就是说，第一次是先走到这个conditon task 的dispatch
 
 然后第二次被signal才算去走完任务。
+
+WFConditional::signal 在此处，有两个地方出现。
+
+一个是`__WFConditional::dispatch()` 还有资源的时候
+
+一次是`WFResourcePool::post` 的时候
 
 ## WFConditional::dispatch()
 
@@ -309,7 +320,32 @@ virtual void dispatch()
 
 如果是先执行的`cond_task_2` 走到这里，在这`cond_task_2`之前先插入我们真正需要执行的`task(http_task task2)`
 
+(http)task2 -> cond_task_2 
+
 如果是后执行的`cond_task_1`，已经加入了wait_list队列中。也在这`cond_task_1`之前先插入我们真正需要执行的`task(http_task task1)`
+
+(http)task1 -> cond_task_1
+
+到了目前为止，我们知道了，其实这个cond_task其实就是个塞子，塞在后面，等有资源才会继续进行。
+
+## 从头到位再次分析
+
+- 我们先从直接有资源的情况看起(cond_task_2)
+
+我们先是`WFConditional *cond_task_2 = pool.get(task2, &task2->user_data);` 产生__WFConditional
+
+然后我们执行`__WFConditional::dispatch()`
+
+有资源，那么signal，exchange flag -> true
+
+进行`this->WFConditional::dispatch();`
+
+`series_of(this)->push_front(this->task);` 我们需要做的http task丢在前面去执行
+
+然后此时exchange后就走到subtask_done了
+
+- 然后没有资源的情况
+
 
 ## post
 

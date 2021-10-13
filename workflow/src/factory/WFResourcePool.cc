@@ -96,11 +96,13 @@ void WFResourcePool::post(void *res)
 	data->mutex.lock();
 	if (++data->value <= 0)   // 如果资源池排队很多，已经大大亏空了，我们放一个资源回去，就得有一个队列中的任务来执行
 	{
+		// 取出cond来执行
 		cond = list_entry(data->wait_list.next, __WFConditional, list);
 		list_del(data->wait_list.next);
 	}
 	else
 	{
+		// 如果资源过剩，就把资源放回去就完了
 		cond = NULL;
 		this->push(res); 
 	}
