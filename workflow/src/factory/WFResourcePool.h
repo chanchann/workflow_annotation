@@ -36,10 +36,10 @@ public:
 		void *pop() { return this->pool->pop(); }
 		void push(void *res) { this->pool->push(res); }
 
-		void **res;
-		long value;
+		void **res;  // void* 的数组
+		long value;   // 这里是剩余资源的大小
 		size_t index;
-		struct list_head wait_list;
+		struct list_head wait_list;   // 把等待的串成链表
 		std::mutex mutex;
 		WFResourcePool *pool;
 	};

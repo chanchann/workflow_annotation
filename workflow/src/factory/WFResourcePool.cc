@@ -62,9 +62,9 @@ WFConditional *WFResourcePool::get(SubTask *task, void **resbuf)
 
 void WFResourcePool::create(size_t n)
 {
-	this->data.res = new void *[n];
-	this->data.value = n;
-	this->data.index = 0;
+	this->data.res = new void *[n];   // 就是创建n个void * 的数组
+	this->data.value = n;   // 资源初始化大小为n
+	this->data.index = 0;   
 	INIT_LIST_HEAD(&this->data.wait_list);
 	this->data.pool = this;
 }
