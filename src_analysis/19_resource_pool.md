@@ -1,4 +1,5 @@
-# workflow demo03: 资源池 - WFResourcePool
+#! https://zhuanlan.zhihu.com/p/421162775
+# workflow 源码解析 09 : 资源池 - WFResourcePool 01
 
 项目源码 : https://github.com/sogou/workflow
 
@@ -340,16 +341,30 @@ virtual void dispatch()
 
 进行`this->WFConditional::dispatch();`
 
-`series_of(this)->push_front(this->task);` 我们需要做的http task丢在前面去执行
+`series_of(this)->push_front(this->task);` 我们需要做的http task串在前面
 
-然后此时exchange后就走到subtask_done了
+然后此时exchange后就走到subtask_done了，然后执行series->pop出任务往下走
 
-- 然后没有资源的情况
+- 然后没有资源的情况(cond_task_1)
+
+我们先是`WFConditional *cond_task_1 = pool.get(task1, &task1->user_data);` 产生__WFConditional
+
+然后我们执行`__WFConditional::dispatch()`
+
+没资源，`list_add_tail(&this->list, &data->wait_list);`, 加入到wait_list中
+
+进行`this->WFConditional::dispatch();`
+
+`series_of(this)->push_front(this->task);`, 我们需要做的http task串在前面
+
+但是此时*不同*, 我们这里是第一次`flag.exchange()`, 所以此处不subtask_done
+
+所以这里`flag.exchange()` 就是一个非常巧妙的开关，什么时候来进行呢，就是等到post回来资源的时候，我们signal，从而`flag.exchange()`, 打开塞子，走到subtask_done, 从而继续series的操作，从而完成task。
 
 
 ## post
 
-我们来看看把资源放回去
+我们来看看把资源放回去发生了什么。
 
 ```cpp
 void WFResourcePool::post(void *res)
@@ -374,3 +389,5 @@ void WFResourcePool::post(void *res)
 		cond->WFConditional::signal(res);
 }
 ```
+
+如果缺资源，放回资源肯定就能唤醒一个任务，否则就是单纯的放回资源。
