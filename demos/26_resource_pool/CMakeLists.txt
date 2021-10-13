@@ -1,0 +1,8 @@
+add_executable(26_resource_pool_01 26_resource_pool_01.cc)
+target_link_libraries(26_resource_pool_01 workflow)
+
+add_executable(26_resource_pool_02 26_resource_pool_02.cc)
+target_link_libraries(26_resource_pool_02 workflow)
+
+add_executable(26_resource_pool_03 26_resource_pool_03.cc)
+target_link_libraries(26_resource_pool_03 workflow)

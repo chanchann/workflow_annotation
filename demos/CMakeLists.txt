@@ -56,5 +56,5 @@ add_subdirectory(${PROJECT_SOURCE_DIR}/07_http)
 # add_subdirectory(${PROJECT_SOURCE_DIR}/23_list)
 add_subdirectory(${PROJECT_SOURCE_DIR}/24_thrd_task)
 # add_subdirectory(${PROJECT_SOURCE_DIR}/25_msgque)
-
+add_subdirectory(${PROJECT_SOURCE_DIR}/26_resource_pool)
 add_subdirectory(${PROJECT_SOURCE_DIR}/27_parse_uri)

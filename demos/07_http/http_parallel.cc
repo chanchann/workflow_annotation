@@ -32,10 +32,10 @@ int main()
     // 并行本身也是一种任务，所以并行也可以放到串行中。
     // 回调函数用于通知用户该并行中的串行均已完成，不能再继续添加新的串行，且回调函数结束后，该并行会立即被销毁。
     ParallelWork *pwork = Workflow::create_parallel_work([&wait_group](const ParallelWork *pwork)
-                                                         {
-                                                             spdlog::info("All series in this parallel have done");
-                                                             wait_group.done();
-                                                         });
+    {
+        spdlog::info("All series in this parallel have done");
+        wait_group.done();
+    });
 
     for (auto &url : urls)
     {

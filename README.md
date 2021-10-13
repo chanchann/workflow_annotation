@@ -1159,3 +1159,9 @@ HttpMessage的所有操作都是单线程的，多线程操作没有什么意义
 101. 利用 calltree.pl 阅读代码
 
 https://zhuanlan.zhihu.com/p/339910341
+
+
+102. 如何保证用户请求严格按照先后顺序被处理和返回结果 
+
+https://github.com/sogou/workflow/issues/559
+
