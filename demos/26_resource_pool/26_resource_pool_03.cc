@@ -34,6 +34,8 @@ int main()
             pool.post(nullptr);
         });
 
+    // get()接口，把任务打包成一个conditional。conditional是一个条件任务，条件满足时运行其包装的任务。
+    // get()接口可包含第二个参数是一个void **resbuf，用于保存所获得的资源。
     WFConditional *cond_task_1 = pool.get(task1, &task1->user_data); 
     WFConditional *cond_task_2 = pool.get(task2, &task2->user_data);
 

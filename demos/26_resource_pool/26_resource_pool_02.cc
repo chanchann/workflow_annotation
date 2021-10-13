@@ -34,8 +34,10 @@ int main()
             pool.post(nullptr); 
             wait_group.done();
         });
-
-        WFConditional *cond = pool.get(task, nullptr); // 无需保存res，可以不传resbuf参数。
+        // 新版代码中无需保存res，可以不传resbuf参数。
+        // 多了一个这个接口 : WFConditional *get(SubTask *task);
+        // 我们旧版这个代码没有这个，所以随便拿个来装一下
+        WFConditional *cond = pool.get(task, &task->user_data); 
         cond->start();
     }
     wait_group.wait();
