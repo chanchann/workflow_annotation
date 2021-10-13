@@ -1165,3 +1165,5 @@ https://zhuanlan.zhihu.com/p/339910341
 
 https://github.com/sogou/workflow/issues/559
 
+一切串行化的需求都可以用resource pool来实现。
+
