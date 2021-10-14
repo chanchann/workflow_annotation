@@ -1167,3 +1167,9 @@ https://github.com/sogou/workflow/issues/559
 
 一切串行化的需求都可以用resource pool来实现。
 
+demo : 
+
+https://github.com/chanchann/workflow_annotation/blob/main/demos/26_resource_pool/26_issue_559_server.cc
+
+https://github.com/chanchann/workflow_annotation/blob/main/demos/26_resource_pool/26_issue_559_client.cc
+
