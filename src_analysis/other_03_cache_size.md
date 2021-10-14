@@ -91,13 +91,13 @@ public:
 
 ## max_size_(0)
 
-![dns cache 03](./pics/dns_cache_03.png)
+![dns cache 02](./pics/dns_cache_02.png)
 
 可见调用 x6
 
 ## max_size_(1)
 
-![dns cache 02](./pics/dns_cache_02.png)
+![dns cache 03](./pics/dns_cache_03.png)
 
 可见调用 x31
 
