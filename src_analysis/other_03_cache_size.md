@@ -1,8 +1,8 @@
 # workflow杂记02 : cache size 分析
 
-https://github.com/sogou/workflow/commit/1736d64d91c8b54c533a6e949354bee5566d6e2c
+本次commit 修改地址 : https://github.com/sogou/workflow/commit/1736d64d91c8b54c533a6e949354bee5566d6e2c
 
-https://github.com/sogou/workflow/issues/590
+issue notification: https://github.com/sogou/workflow/issues/590
 
 项目源码 : https://github.com/sogou/workflow
 
