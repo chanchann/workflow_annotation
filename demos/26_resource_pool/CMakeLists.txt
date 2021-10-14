@@ -9,3 +9,6 @@ target_link_libraries(26_resource_pool_03 workflow)
 
 add_executable(26_issue_559_server 26_issue_559_server.cc)
 target_link_libraries(26_issue_559_server workflow)
+
+add_executable(26_issue_559_client 26_issue_559_client.cc)
+target_link_libraries(26_issue_559_client workflow)

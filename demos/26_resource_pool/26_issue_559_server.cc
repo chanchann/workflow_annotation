@@ -7,9 +7,11 @@
 #include <unordered_map>
 #include <memory>
 #include "util.h"
+#include "json.hpp"
+
+using json = nlohmann::json;
 
 static WFFacilities::WaitGroup wait_group(1);
-std::atomic<int> cnt;
 std::unordered_map<int, std::unique_ptr<WFResourcePool> > uid_pool_map;
 std::mutex mutex;
 
@@ -18,10 +20,10 @@ void sig_handler(int signo)
     wait_group.done();
 }
 
-void go_func(int uid, protocol::HttpResponse *resp)
+void go_func(const int uid, const int cnt, protocol::HttpResponse *resp)
 {
     char buf[256];
-    sprintf(buf, "uid is : %d, cnt is %d\n", uid, cnt++);
+    sprintf(buf, "uid is : %d, cnt is %d\n", uid, cnt);
     resp->append_output_body(buf);
 }
 
@@ -37,7 +39,10 @@ int main()
         size_t len;
         req->get_parsed_body(&body, &len);
 
-        const int uid = atoi(static_cast<const char *>(body));
+        json js = json::parse(static_cast<const char *>(body));
+        
+        const int uid = js["uid"];
+        const int cnt = js["cnt"];
         {
             std::lock_guard<std::mutex> lock(mutex);
             if (!uid_pool_map.count(uid))
@@ -46,7 +51,7 @@ int main()
             }
         }
      
-        WFGoTask *go_task = WFTaskFactory::create_go_task("GO", go_func, uid, resp);
+        WFGoTask *go_task = WFTaskFactory::create_go_task("GO", go_func, uid, cnt,resp);
 
         WFConditional *cond = uid_pool_map[uid]->get(go_task, &go_task->user_data);
         series_of(server_task)->push_back(cond);
