@@ -7,9 +7,9 @@
 using namespace protocol;
 using json = nlohmann::json;
 
-static WFFacilities::WaitGroup wait_group(1);
-
 // 观察结果可看出是顺序发送，并且顺序收到的
+
+static WFFacilities::WaitGroup wait_group(1);
 
 void sig_handler(int signo)
 {

@@ -2,7 +2,15 @@
 #include <workflow/WFDnsClient.h>
 #include <workflow/WFFacilities.h>
 
+static WFFacilities::WaitGroup wait_group(1);
+
+void sig_handler(int signo)
+{
+    wait_group.done();
+}
+
 int main() {
+	
 	unsigned short req_id = 0x4321;
 	WFFacilities::WaitGroup wait_group(1);
 	WFDnsClient client;

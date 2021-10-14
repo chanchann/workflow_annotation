@@ -1,5 +1,5 @@
 
-# workflow杂记01 : 分析一次cache中lock的改动
+# workflow杂记02 : 分析一次cache中lock的改动
 
 分析代码改动地址 : https://github.com/sogou/workflow/commit/0eed99b538d824579c3e339625a6727646dca343
 
