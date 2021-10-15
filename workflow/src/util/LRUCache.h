@@ -281,7 +281,7 @@ private:
 	}
 
 	std::mutex mutex_;
-	size_t max_size_;
+	size_t max_size_;  
 	size_t size_;
 
 	Handle not_use_;

@@ -24,6 +24,16 @@ DNS_CACHE_LEVEL_2	->	TTL [DEFAULT]
 DNS_CACHE_LEVEL_3	->	Forever
 ```
 
+其中比较常用的是LEVEL_1 和 LEVEL_2
+
+WFDnsResolver::create_router_task
+
+```cpp
+int dns_cache_level = params->retry_times == 0 ? DNS_CACHE_LEVEL_2 :
+													DNS_CACHE_LEVEL_1;
+```
+
+
 ```cpp
 void WFResolverTask::dispatch()
 {
@@ -52,9 +62,11 @@ void WFResolverTask::dispatch()
 			addr_handle = NULL;
 			break;
 		}
-		// 如果有cache，直接return
+		// 如果get到了cache而且没过期
 		if (addr_handle)
 		{
+			// 单例
+			// 用来解析dns的
 			auto *route_manager = WFGlobal::get_route_manager();
 			struct addrinfo *addrinfo = addr_handle->value.addrinfo;
 			struct addrinfo first;
@@ -198,3 +210,77 @@ void WFResolverTask::dispatch()
 	this->subtask_done();
 }
 ```
+
+# 这段代码重要部分拆分解析
+
+## DNS_CACHE_LEVEL_1 : dns_cache->get_confident
+
+```cpp
+const DnsHandle *get_confident(const HostPort& host_port)
+{
+	return get_inner(host_port, GET_TYPE_CONFIDENT);
+}
+```
+
+## case DNS_CACHE_LEVEL_2 : dns_cache->get_ttl
+
+```cpp
+const DnsHandle *get_ttl(const HostPort& host_port)
+{
+	return get_inner(host_port, GET_TYPE_TTL);
+}
+```
+
+## DnsCache::get_inner
+
+其实这两个接口都是调用get_inner
+
+不过传的type不一样罢了
+
+todo : 此处逻辑问问
+
+```cpp
+const DnsCache::DnsHandle *DnsCache::get_inner(const HostPort& host_port, int type)
+{
+	int64_t cur_time = GET_CURRENT_SECOND;
+	// #define GET_CURRENT_SECOND	std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now().time_since_epoch()).count()
+
+	std::lock_guard<std::mutex> lock(mutex_);
+
+	const DnsHandle *handle = cache_pool_.get(host_port);
+
+	if (handle)   // 如果找到cache
+	{
+		switch (type)   // 那么看他的类型
+		{
+		case GET_TYPE_TTL:      // DNS_CACHE_LEVEL_2
+			if (cur_time > handle->value.expire_time)    // 超时了
+			{
+				const_cast<DnsHandle *>(handle)->value.expire_time += TTL_INC;
+				cache_pool_.release(handle);   
+				return NULL;
+			}
+
+			break;
+
+		case GET_TYPE_CONFIDENT:   // DNS_CACHE_LEVEL_1
+			if (cur_time > handle->value.confident_time)   // 超时了
+			{
+				const_cast<DnsHandle *>(handle)->value.confident_time += CONFIDENT_INC;  
+				cache_pool_.release(handle);
+				return NULL;
+			}
+
+			break;
+
+		default:
+			break;
+		}
+	}
+
+	return handle;
+}
+```
+
+## route_manager
+

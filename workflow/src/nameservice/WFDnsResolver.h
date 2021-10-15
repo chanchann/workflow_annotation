@@ -36,7 +36,7 @@ public:
 						 router_callback_t&& callback);
 
 private:
-	WFResourcePool respool;
+	WFResourcePool respool;   // 这里资源池用来限制并发度
 
 private:
 	WFConditional *get_cond(SubTask *task)
