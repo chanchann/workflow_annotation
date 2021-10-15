@@ -198,7 +198,7 @@ CommSchedTarget *RouteResultEntry::create_target(const struct RouteParams *param
 
 int RouteResultEntry::init(const struct RouteParams *params)
 {
-	const struct addrinfo *addr = params->addrinfo;
+	const struct addrinfo *addr = params->addrinfo;  // 必须要对方的addrinfo信息(可能从cache中拿出的)
 	CommSchedTarget *target;
 
 	if (addr == NULL)//0
@@ -212,21 +212,23 @@ int RouteResultEntry::init(const struct RouteParams *params)
 		target = this->create_target(params, addr);
 		if (target)
 		{
+			// std::vector<CommSchedTarget *> targets;
 			this->targets.push_back(target);
-			this->request_object = target;
+			this->request_object = target;  // 这里就把创建的target拿给用户了
 			this->md5_16 = params->md5_16;
 			return 0;
 		}
 
 		return -1;
 	}
-
+	// 如果不止一个addrinfo 那么把剩余的add group了
+	// 每一个 entry 都有一个group来管理target_list
 	this->group = new CommSchedGroup();
 	if (this->group->init() >= 0)
 	{
 		if (this->add_group_targets(params) >= 0)
 		{
-			this->request_object = this->group;
+			this->request_object = this->group; // 那么我们求的request_object 是一组group了
 			this->md5_16 = params->md5_16;
 			return 0;
 		}
@@ -242,7 +244,7 @@ int RouteResultEntry::add_group_targets(const struct RouteParams *params)
 {
 	const struct addrinfo *addr;
 	CommSchedTarget *target;
-
+	// 进来挨着挨着 create_target 出target 并 add了
 	for (addr = params->addrinfo; addr; addr = addr->ai_next)
 	{
 		target = this->create_target(params, addr);
@@ -251,7 +253,7 @@ int RouteResultEntry::add_group_targets(const struct RouteParams *params)
 			if (this->group->add(target) >= 0)
 			{
 				this->targets.push_back(target);
-				this->nleft++;
+				this->nleft++;  
 				continue;
 			}
 
@@ -448,14 +450,15 @@ int RouteManager::get(TransportType type,
 		errno = EINVAL;
 		return -1;
 	}
-
+	// 先通过这些信息算一个key出来
 	uint64_t md5_16 = __generate_key(type, addrinfo, other_info,
 									 endpoint_params, hostname);
 	rb_node **p = &cache_.rb_node;
 	rb_node *parent = NULL;
 	RouteResultEntry *entry;
 	std::lock_guard<std::mutex> lock(mutex_);
-
+	
+	// 这里就是去找我们之前cache里存了这个key没有
 	while (*p)
 	{
 		parent = *p;
@@ -467,11 +470,13 @@ int RouteManager::get(TransportType type,
 			p = &(*p)->rb_right;
 		else
 		{
+			// 这里从熔断中恢复
 			entry->check_breaker();
 			break;
 		}
 	}
 
+	// 如果cache中没找到
 	if (*p == NULL)
 	{
 		int ssl_connect_timeout = 0;
@@ -509,8 +514,9 @@ int RouteManager::get(TransportType type,
 		}
 
 		entry = new RouteResultEntry;
-		if (entry->init(&params) >= 0)
+		if (entry->init(&params) >= 0)    // 那么必然在这里产生了request_object
 		{
+			// 那么就把key加入cache里面
 			rb_link_node(&entry->rb, parent, p);
 			rb_insert_color(&entry->rb, &cache_);
 		}
@@ -524,7 +530,7 @@ int RouteManager::get(TransportType type,
 	if (entry)
 	{
 		result.cookie = entry;
-		result.request_object = entry->request_object;
+		result.request_object = entry->request_object;    // 这里就把request_object拿到了
 		return 0;
 	}
 

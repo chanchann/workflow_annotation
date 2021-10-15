@@ -94,6 +94,8 @@ static inline struct page * rb_insert_page_cache(struct inode * inode,
 #ifndef	_LINUX_RBTREE_H
 #define	_LINUX_RBTREE_H
 
+
+// rb_node是节点类型
 #pragma pack(1)
 struct rb_node
 {
@@ -106,13 +108,14 @@ struct rb_node
 };
 #pragma pack()
 
+// rb_root是仅包含一个节点指针的类，用来表示根节点。
 struct rb_root
 {
 	struct rb_node *rb_node;
 };
 
-#define RB_ROOT (struct rb_root){ (struct rb_node *)0, }
-#define	rb_entry(ptr, type, member) \
+#define RB_ROOT (struct rb_root){ (struct rb_node *)0, }    // 初始根节点指针
+#define	rb_entry(ptr, type, member) \       // 包含ptr的结构体指针
 	((type *)((char *)(ptr)-(unsigned long)(&((type *)0)->member)))
 
 #ifdef __cplusplus

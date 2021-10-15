@@ -1,5 +1,5 @@
 
-# workflow杂记02 : 分析一次cache中lock的改动
+# workflow杂记02 : dns的优化
 
 分析代码改动地址 : https://github.com/sogou/workflow/commit/0eed99b538d824579c3e339625a6727646dca343
 
@@ -32,7 +32,6 @@ WFDnsResolver::create_router_task
 int dns_cache_level = params->retry_times == 0 ? DNS_CACHE_LEVEL_2 :
 													DNS_CACHE_LEVEL_1;
 ```
-
 
 ```cpp
 void WFResolverTask::dispatch()
@@ -68,16 +67,19 @@ void WFResolverTask::dispatch()
 			// 单例
 			// 用来解析dns的
 			auto *route_manager = WFGlobal::get_route_manager();
+			// 拿出cache中的 addrinfo
 			struct addrinfo *addrinfo = addr_handle->value.addrinfo;
 			struct addrinfo first;
-
+			// (bool)first_addr_only_ = params->fixed_addr;
+			// 如果我们只需要带个，而且addrinfo后面还有，那么我们只要第一个，而且把后面砍断
 			if (first_addr_only_ && addrinfo->ai_next)
 			{
-				first = *addrinfo;
+				first = *addrinfo;   // 这里拷贝了一次
 				first.ai_next = NULL;
 				addrinfo = &first;
 			}
 
+			// 这里是核心解析了
 			if (route_manager->get(type_, addrinfo, info_, &endpoint_params_,
 								   host_, this->result) < 0)
 			{
@@ -237,50 +239,9 @@ const DnsHandle *get_ttl(const HostPort& host_port)
 
 不过传的type不一样罢了
 
-todo : 此处逻辑问问
-
-```cpp
-const DnsCache::DnsHandle *DnsCache::get_inner(const HostPort& host_port, int type)
-{
-	int64_t cur_time = GET_CURRENT_SECOND;
-	// #define GET_CURRENT_SECOND	std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now().time_since_epoch()).count()
-
-	std::lock_guard<std::mutex> lock(mutex_);
-
-	const DnsHandle *handle = cache_pool_.get(host_port);
-
-	if (handle)   // 如果找到cache
-	{
-		switch (type)   // 那么看他的类型
-		{
-		case GET_TYPE_TTL:      // DNS_CACHE_LEVEL_2
-			if (cur_time > handle->value.expire_time)    // 超时了
-			{
-				const_cast<DnsHandle *>(handle)->value.expire_time += TTL_INC;
-				cache_pool_.release(handle);   
-				return NULL;
-			}
-
-			break;
-
-		case GET_TYPE_CONFIDENT:   // DNS_CACHE_LEVEL_1
-			if (cur_time > handle->value.confident_time)   // 超时了
-			{
-				const_cast<DnsHandle *>(handle)->value.confident_time += CONFIDENT_INC;  
-				cache_pool_.release(handle);
-				return NULL;
-			}
-
-			break;
-
-		default:
-			break;
-		}
-	}
-
-	return handle;
-}
-```
+这里在DnsCache解析时，详细探究，这里我们只用知道他得到了DnsHandle(using DnsHandle = LRUHandle<HostPort, DnsCacheValue>;) 即可
 
 ## route_manager
+
+这里我们看RouteManager解析部分
 

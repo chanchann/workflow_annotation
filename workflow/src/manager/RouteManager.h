@@ -34,6 +34,7 @@
 class RouteManager
 {
 public:
+	// 我们就是要通过addrino得到这个result
 	class RouteResult
 	{
 	public:
@@ -44,7 +45,7 @@ public:
 		RouteResult(): cookie(NULL), request_object(NULL) { }
 		void clear() { cookie = NULL; request_object = NULL; }
 	};
-
+	
 	class RouteTarget : public CommSchedTarget
 	{
 	public:
@@ -80,6 +81,7 @@ private:
 	struct rb_root cache_;
 
 public:
+	// 熔断用的
 	static void notify_unavailable(void *cookie, CommTarget *target);
 	static void notify_available(void *cookie, CommTarget *target);
 };
