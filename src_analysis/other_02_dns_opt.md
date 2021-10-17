@@ -36,6 +36,7 @@ int dns_cache_level = params->retry_times == 0 ? DNS_CACHE_LEVEL_2 :
 ```cpp
 void WFResolverTask::dispatch()
 {
+	// part 1
 	// 有dns cache
 	if (dns_cache_level_ != DNS_CACHE_LEVEL_0)
 	{
@@ -71,7 +72,7 @@ void WFResolverTask::dispatch()
 			struct addrinfo *addrinfo = addr_handle->value.addrinfo;
 			struct addrinfo first;
 			// (bool)first_addr_only_ = params->fixed_addr;
-			// 如果我们只需要带个，而且addrinfo后面还有，那么我们只要第一个，而且把后面砍断
+			// 如果我们只需要第一个，而且addrinfo后面还有，我们还要把后面砍断
 			if (first_addr_only_ && addrinfo->ai_next)
 			{
 				first = *addrinfo;   // 这里拷贝了一次
@@ -79,7 +80,7 @@ void WFResolverTask::dispatch()
 				addrinfo = &first;
 			}
 
-			// 这里是核心解析了
+			// 这里是核心解析了，主要就是把route_result_.request_object get到
 			if (route_manager->get(type_, addrinfo, info_, &endpoint_params_,
 								   host_, this->result) < 0)
 			{
@@ -89,6 +90,7 @@ void WFResolverTask::dispatch()
 			else
 				this->state = WFT_STATE_SUCCESS;
 
+			// 然后就可以release了
 			dns_cache->release(addr_handle);
 			query_dns_ = false;  // 就直接不去查dns了
 			this->subtask_done();
@@ -96,18 +98,27 @@ void WFResolverTask::dispatch()
 		}
 	}
 
+
+	// part2
+	// 如果没有cache
+	// 又还有host_
+	// 比如www.baidu.com
 	if (!host_.empty())
 	{
-		char front = host_.front();
+		char front = host_.front();  
 		char back = host_.back();
 		struct in6_addr addr;
 		int ret;
-
+		
+		// 假如是ip
+		// ipv6 : 2001:0db8:02de:0000:0000:0000:0000:0e13
 		if (host_.find(':') != std::string::npos)
 			ret = inet_pton(AF_INET6, host_.c_str(), &addr);
+		// ipv4 : 192.11.11.11  
+		// 其中没有 ':' , 而且首位都是数字
 		else if (isdigit(back) && isdigit(front))
 			ret = inet_pton(AF_INET, host_.c_str(), &addr);
-		else if (front == '/')
+		else if (front == '/')    // 这个是local path的时候  // todo
 			ret = 1;
 		else
 			ret = 0;
@@ -118,15 +129,17 @@ void WFResolverTask::dispatch()
 			DnsOutput dns_out;
 
 			dns_in.reset(host_, port_);
-			DnsRoutine::run(&dns_in, &dns_out);
-			__add_passive_flags((struct addrinfo *)dns_out.get_addrinfo());
+			DnsRoutine::run(&dns_in, &dns_out);  // 这里通过getaddrino 得到了addrinfo(在dns_out中)
+			// 获得了才加上AI_PASSIVE
+			__add_passive_flags((struct addrinfo *)dns_out.get_addrinfo());  
 			dns_callback_internal(&dns_out, (unsigned int)-1, (unsigned int)-1);
-			query_dns_ = false;
+			query_dns_ = false;   
 			this->subtask_done();
 			return;
 		}
 	}
 
+	// part3
 	const char *hosts = WFGlobal::get_global_settings()->hosts_path;
 	if (hosts)
 	{
@@ -215,7 +228,8 @@ void WFResolverTask::dispatch()
 
 # 这段代码重要部分拆分解析
 
-## DNS_CACHE_LEVEL_1 : dns_cache->get_confident
+## part1 
+### DNS_CACHE_LEVEL_1 : dns_cache->get_confident
 
 ```cpp
 const DnsHandle *get_confident(const HostPort& host_port)
@@ -224,7 +238,7 @@ const DnsHandle *get_confident(const HostPort& host_port)
 }
 ```
 
-## case DNS_CACHE_LEVEL_2 : dns_cache->get_ttl
+### case DNS_CACHE_LEVEL_2 : dns_cache->get_ttl
 
 ```cpp
 const DnsHandle *get_ttl(const HostPort& host_port)
@@ -233,7 +247,7 @@ const DnsHandle *get_ttl(const HostPort& host_port)
 }
 ```
 
-## DnsCache::get_inner
+### DnsCache::get_inner
 
 其实这两个接口都是调用get_inner
 
@@ -241,7 +255,63 @@ const DnsHandle *get_ttl(const HostPort& host_port)
 
 这里在DnsCache解析时，详细探究，这里我们只用知道他得到了DnsHandle(using DnsHandle = LRUHandle<HostPort, DnsCacheValue>;) 即可
 
-## route_manager
+### route_manager
 
 这里我们看RouteManager解析部分
+
+https://github.com/chanchann/workflow_annotation/blob/main/src_analysis/20_RouteManager.md
+
+## part2
+
+### DnsRoutine
+
+其中一个重要的点是`DnsRoutine`，详细见`DnsRoutine`的文章
+
+## __add_passive_flags
+
+```cpp
+static void __add_passive_flags(struct addrinfo *ai)
+{
+	while (ai)
+	{
+		ai->ai_flags |= AI_PASSIVE;
+		ai = ai->ai_next;
+	}
+}
+```
+
+通常服务器端在调用getaddrinfo之前，ai_flags设置AI_PASSIVE，用于bind；主机名nodename通常会设置为NULL，返回通配地址[::]。
+
+## WFResolverTask::dns_callback_internal
+
+就是把获取到的addrinfo 放到dns_cache 中，然后利用我们得到的addrinfo, 把WFResolverTask的父类的result获取到
+
+```cpp
+class WFRouterTask : public WFGenericTask
+{
+	...
+	RouteManager::RouteResult result;
+};
+```
+
+
+```cpp
+
+void WFResolverTask::dns_callback_internal(DnsOutput *dns_out,
+										   unsigned int ttl_default,
+										   unsigned int ttl_min)
+{
+	...
+	struct addrinfo *addrinfo = dns_out->move_addrinfo();
+	...
+	addr_handle = dns_cache->put(host_, port_, addrinfo,
+									(unsigned int)ttl_default,
+									(unsigned int)ttl_min);
+	route_manager->get(type_, addrinfo, info_, &endpoint_params_,
+							host_, this->result);
+
+	dns_cache->release(addr_handle);
+
+}
+```
 

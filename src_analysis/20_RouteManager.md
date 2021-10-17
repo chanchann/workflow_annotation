@@ -1,3 +1,4 @@
+#! https://zhuanlan.zhihu.com/p/422001127
 # workflow源码解析13 : RouteManager
 
 router是负责dns解析或upstream查找的
@@ -40,6 +41,10 @@ public:
 他有两个inner class
 
 ## RouteResult
+
+这个是需要返回给上层用户的结果
+
+其中重要的包含了个`CommSchedObject *request_object;`, 这个我们后面会知道什么用
 
 ```cpp
 class RouteResult
@@ -87,7 +92,7 @@ public:
 
 ```
 
-这个继承自CommSchedTarget，一看就是通信用的
+这个继承自CommSchedTarget，一看就是给底层通信用的
 
 其中
 
@@ -224,9 +229,9 @@ CommSchedTarget *RouteResultEntry::create_target(const struct RouteParams *param
 
 我们的routeManager，在我们的dns任务中，通过cache或者获取到的addrinfo
 
-我们通过addrinfo 可以得出target，这个target和RouteResult的公共祖先是CommSchedObject
+我们通过addrinfo 可以得出target，这个target和RouteResult的request_object的公共祖先是CommSchedObject
 
-我们最后获取的是RouteResult就是这个协议相应的target，用来创造connect_fd的。
+我们最后获取的是RouteResult.request_object就是这个协议相应的target，用来创造connect_fd的。
 
 ## todo
 

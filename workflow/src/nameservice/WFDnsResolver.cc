@@ -201,6 +201,25 @@ static int __readaddrinfo(const char *path,
 }
 
 // Add AI_PASSIVE to point that this addrinfo is alloced by getaddrinfo
+/*
+If the AI_PASSIVE flag is specified in hints.ai_flags, and node
+is NULL, then the returned socket addresses will be suitable for
+bind(2)ing a socket that will accept(2) connections.  The
+returned socket address will contain the "wildcard address"
+(INADDR_ANY for IPv4 addresses, IN6ADDR_ANY_INIT for IPv6
+address).  The wildcard address is used by applications
+(typically servers) that intend to accept connections on any of
+the host's network addresses.  If node is not NULL, then the
+AI_PASSIVE flag is ignored.
+
+If the AI_PASSIVE flag is not set in hints.ai_flags, then the
+returned socket addresses will be suitable for use with
+connect(2), sendto(2), or sendmsg(2).  If node is NULL, then the
+network address will be set to the loopback interface address
+(INADDR_LOOPBACK for IPv4 addresses, IN6ADDR_LOOPBACK_INIT for
+IPv6 address); this is used by applications that intend to
+communicate with peers running on the same host.
+*/
 static void __add_passive_flags(struct addrinfo *ai)
 {
 	while (ai)
@@ -346,7 +365,7 @@ void WFResolverTask::dispatch()
 			DnsOutput dns_out;
 
 			dns_in.reset(host_, port_);
-			DnsRoutine::run(&dns_in, &dns_out);
+			DnsRoutine::run(&dns_in, &dns_out);	
 			__add_passive_flags((struct addrinfo *)dns_out.get_addrinfo());
 			dns_callback_internal(&dns_out, (unsigned int)-1, (unsigned int)-1);
 			insert_dns_ = false;

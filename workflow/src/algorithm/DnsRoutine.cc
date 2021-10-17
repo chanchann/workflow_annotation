@@ -87,6 +87,7 @@ void DnsRoutine::run_local_path(const std::string& path, DnsOutput *out)
 
 void DnsRoutine::run(const DnsInput *in, DnsOutput *out)
 {
+	// 当这个host_是个本地路径
 	if (!in->host_.empty() && in->host_[0] == '/')
 	{
 		run_local_path(in->host_, out);
@@ -95,6 +96,7 @@ void DnsRoutine::run(const DnsInput *in, DnsOutput *out)
 
 	struct addrinfo hints = {
 #ifdef AI_ADDRCONFIG
+		// AI_ADDRCONFIG: Which address type (IPv4 or IPv6) is requested to be configured.
 		.ai_flags    = AI_ADDRCONFIG,
 #endif
 		.ai_family   = AF_UNSPEC,
@@ -103,6 +105,17 @@ void DnsRoutine::run(const DnsInput *in, DnsOutput *out)
 	char port_str[PORT_STR_MAX + 1];
 
 	snprintf(port_str, PORT_STR_MAX + 1, "%u", in->port_);
+	
+	// 没有cache，我们最终是通过getaddrinfo来获取到addrinfo
+	// https://man7.org/linux/man-pages/man3/getaddrinfo.3.html
+	// The getaddrinfo() function combines the functionality provided 
+	// by the gethostbyname(3) and getservbyname(3) functions into a single interface
+	/*
+	int getaddrinfo(const char *restrict node,
+					const char *restrict service,
+					const struct addrinfo *restrict hints,
+					struct addrinfo **restrict res);
+	*/
 	out->error_ = getaddrinfo(in->host_.c_str(),
 							  port_str,
 							  &hints,
