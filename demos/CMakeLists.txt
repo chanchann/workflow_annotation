@@ -59,3 +59,6 @@ add_subdirectory(${PROJECT_SOURCE_DIR}/22_dns)
 # add_subdirectory(${PROJECT_SOURCE_DIR}/25_msgque)
 # add_subdirectory(${PROJECT_SOURCE_DIR}/26_resource_pool)
 # add_subdirectory(${PROJECT_SOURCE_DIR}/27_parse_uri)
+add_subdirectory(${PROJECT_SOURCE_DIR}/28_string_util)
+
+add_subdirectory(${PROJECT_SOURCE_DIR}/other)

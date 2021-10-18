@@ -1,0 +1,2 @@
+add_executable(28_string_01 28_string_01.cc)
+target_link_libraries(28_string_01 workflow)

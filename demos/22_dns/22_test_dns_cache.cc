@@ -3,6 +3,10 @@
 #include <workflow/WFTaskFactory.h>
 #include <workflow/WFFacilities.h>
 
+
+// 通过本例分析
+// https://github.com/sogou/workflow/commit/1736d64d91c8b54c533a6e949354bee5566d6e2c
+
 using namespace protocol;
 
 void http_callback(WFHttpTask *task)

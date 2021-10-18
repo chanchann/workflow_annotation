@@ -131,6 +131,7 @@ void WFResolverTask::dispatch()
 			dns_in.reset(host_, port_);
 			DnsRoutine::run(&dns_in, &dns_out);  // 这里通过getaddrino 得到了addrinfo(在dns_out中)
 			// 获得了才加上AI_PASSIVE
+			// 为什么在之后再add_passive？
 			__add_passive_flags((struct addrinfo *)dns_out.get_addrinfo());  
 			dns_callback_internal(&dns_out, (unsigned int)-1, (unsigned int)-1);
 			query_dns_ = false;   
@@ -140,6 +141,12 @@ void WFResolverTask::dispatch()
 	}
 
 	// part3
+	// 如果没有cache
+	// 还没有host_
+	// for server?
+
+	// "/etc/hosts"
+	// 操作和上面基本相同
 	const char *hosts = WFGlobal::get_global_settings()->hosts_path;
 	if (hosts)
 	{
@@ -149,6 +156,7 @@ void WFResolverTask::dispatch()
 		if (ret == 0)
 		{
 			DnsOutput out;
+			// 注意这里是create
 			DnsRoutine::create(&out, ret, ai);
 			__add_passive_flags((struct addrinfo *)out.get_addrinfo());
 			dns_callback_internal(&out, dns_ttl_default_, dns_ttl_min_);
@@ -158,6 +166,7 @@ void WFResolverTask::dispatch()
 		}
 	}
 
+	// 如果都没有"/etc/hosts"，那么我们就得
 	WFDnsClient *client = WFGlobal::get_dns_client();
 	if (client)
 	{
@@ -179,6 +188,16 @@ void WFResolverTask::dispatch()
 		}
 		else
 		{
+			/*
+				struct DnsContext
+				{
+					int state;
+					int error;
+					int eai_error;
+					unsigned short port;
+					struct addrinfo *ai;
+				};
+			*/
 			struct DnsContext *dctx = new struct DnsContext[2];
 			WFDnsTask *task_v4;
 			WFDnsTask *task_v6;
@@ -297,7 +316,7 @@ class WFRouterTask : public WFGenericTask
 
 ```cpp
 
-void WFResolverTask::dns_callback_internal(DnsOutput *dns_out,
+void WFResolverTwask::dns_callback_internal(DnsOutput *dns_out,
 										   unsigned int ttl_default,
 										   unsigned int ttl_min)
 {
@@ -315,3 +334,102 @@ void WFResolverTask::dns_callback_internal(DnsOutput *dns_out,
 }
 ```
 
+## part3
+
+### __readaddrinfo
+
+这里基本和part2操作相同，有个最大的区别就在于__readaddrinfo
+
+```cpp
+
+static int __readaddrinfo(const char *path,
+						  const char *name, unsigned short port,
+						  const struct addrinfo *hints,
+						  struct addrinfo **res)
+{
+	char port_str[PORT_STR_MAX + 1];
+	size_t bufsize = 0;
+	char *line = NULL;
+	int count = 0;
+	struct addrinfo h;
+	int errno_bak;
+	FILE *fp;
+	int ret;
+
+	fp = fopen(path, "r");
+	if (!fp)
+		return EAI_SYSTEM;
+
+	h = *hints;
+	h.ai_flags |= AI_NUMERICSERV | AI_NUMERICHOST,
+	snprintf(port_str, PORT_STR_MAX + 1, "%u", port);
+
+	errno_bak = errno;
+	while ((ret = getline(&line, &bufsize, fp)) > 0)
+	{
+		if (__readaddrinfo_line(line, name, port_str, &h, res) == 0)
+		{
+			count++;
+			res = &(*res)->ai_next;
+		}
+	}
+
+	ret = ferror(fp) ? EAI_SYSTEM : EAI_NONAME;
+	free(line);
+	fclose(fp);
+	if (count != 0)
+	{
+		errno = errno_bak;
+		return 0;
+	}
+
+	return ret;
+}
+```
+
+```cpp
+
+// hosts line format: IP canonical_name [aliases...] [# Comment]
+static int __readaddrinfo_line(char *p, const char *name, const char *port,
+							   const struct addrinfo *hints,
+							   struct addrinfo **res)
+{
+	const char *ip = NULL;
+	char *start;
+
+	start = p;
+	while (*start != '\0' && *start != '#')
+		start++;
+	*start = '\0';
+
+	while (1)
+	{
+		while (isspace(*p))
+			p++;
+
+		start = p;
+		while (*p != '\0' && !isspace(*p))
+			p++;
+
+		if (start == p)
+			break;
+
+		if (*p != '\0')
+			*p++ = '\0';
+
+		if (ip == NULL)
+		{
+			ip = start;
+			continue;
+		}
+
+		if (strcasecmp(name, start) == 0)
+		{
+			if (getaddrinfo(ip, port, hints, res) == 0)
+				return 0;
+		}
+	}
+
+	return 1;
+}
+```
