@@ -1,0 +1,8 @@
+add_executable(29_upstream_01 29_upstream_01.cc)
+target_link_libraries(29_upstream_01 workflow)
+
+add_executable(29_upstream_server 29_upstream_server.cc)
+target_link_libraries(29_upstream_server workflow)
+
+add_executable(29_upstream_random 29_upstream_random.cc)
+target_link_libraries(29_upstream_random workflow)
