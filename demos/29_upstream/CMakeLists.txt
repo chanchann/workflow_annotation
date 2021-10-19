@@ -6,3 +6,12 @@ target_link_libraries(29_upstream_server workflow)
 
 add_executable(29_upstream_random 29_upstream_random.cc)
 target_link_libraries(29_upstream_random workflow)
+
+add_executable(29_upstream_weighted 29_upstream_weighted.cc)
+target_link_libraries(29_upstream_weighted workflow)
+
+add_executable(29_upstream_hash 29_upstream_hash.cc)
+target_link_libraries(29_upstream_hash workflow)
+
+add_executable(29_upstream_hash_define 29_upstream_hash_define.cc)
+target_link_libraries(29_upstream_hash_define workflow)

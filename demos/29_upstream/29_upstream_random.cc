@@ -16,7 +16,11 @@
 */
 
 /*
-实验说明 :
+实验1说明 : 在多个目标中随机访问
+
+配置一个本地反向代理，将本地发出的random_proxy.name所有请求均匀的打到3个目标server上
+
+实验步骤:
 
 1. 先启动29_upstream_server
 
@@ -40,7 +44,7 @@ root@48b37db21b2f:/home/pro/workflow_annotation/demos/build# ./29_upstream_rando
 const int server_num = 3;   // 和server那边匹配上
 const int times = 1000;
 WFFacilities::WaitGroup wait_group(times);
-std::vector<int> cnt_list(3, 0);   // 统计一下
+std::vector<int> cnt_list(server_num, 0);   // 统计一下
 
 void http_callback(WFHttpTask* task)
 {
@@ -60,7 +64,7 @@ void http_callback(WFHttpTask* task)
 
 WFHttpTask* create_http_task()
 {
-    return WFTaskFactory::create_http_task("http://random_proxy.name/", 4, 2,
+    return WFTaskFactory::create_http_task("http://random_proxy.name/", 0, 0,
                         std::bind(http_callback, std::placeholders::_1));
 }
 
@@ -76,7 +80,8 @@ int main()
     UpstreamManager::upstream_add_server(proxy_name, "127.0.0.1:8001");
     UpstreamManager::upstream_add_server(proxy_name, "127.0.0.1:8002");
 
-    UpstreamManager::upstream_add_server(proxy_name, "www.baidu.com");
+    // todo : 域名另做实验，此处只是统计
+    // UpstreamManager::upstream_add_server(proxy_name, "www.baidu.com");
     // todo : in what condition use this?
     // UpstreamManager::upstream_add_server(proxy_name, "/dev/unix_domain_scoket_sample");
     
