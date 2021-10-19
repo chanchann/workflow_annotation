@@ -16,29 +16,25 @@ void sig_handler(int signo)
     wait_group.done();
 }
 
-void server_process(WFHttpTask *task, std::string &name)
+void server_process(WFHttpTask *task, std::string& name)
 {
     auto *resp = task->get_resp();
-    resp->add_header_pair("Content-Type", "text/plain");
-    resp->append_output_body_nocopy(static_cast<const char *>(name.c_str()), name.size());
+    // resp->add_header_pair("Content-Type", "text/plain");
+    resp->append_output_body_nocopy(static_cast<const void *>(name.c_str()), name.size());
 }
 
 int main()
 {
     signal(SIGINT, sig_handler);
-    std::vector<std::unique_ptr<WFHttpServer>> server_list;
+    std::vector<std::unique_ptr<WFHttpServer> > server_list(3);
     unsigned int port = 8000;
     for (int i = 0; i < 3; i++)
     {
-        std::string server_name = "server-" + std::to_string(i);
-        auto deleter = [](WFHttpServer *server)
-        {
-            server->stop();
-        }; 
         server_list[i] = 
-            std::unique_ptr<WFHttpServer, decltype(deleter)>(new WFHttpServer(std::bind(&server_process, 
-                                                            std::placeholders::_1, server_name)), 
-                                                            deleter);
+            util::make_unique<WFHttpServer>(std::bind(&server_process, 
+                                            std::placeholders::_1, 
+                                            "server-" + std::to_string(i)));
+
         if (server_list[i]->start("127.0.0.1", port++) != 0)
         {
             fprintf(stderr, "http server start failed");
@@ -48,5 +44,9 @@ int main()
     }
 
     wait_group.wait();
+    // todo : 做实验把这个丢进unique_ptr 的 deleter如何
+    for(auto& server : server_list) {
+        server->stop();
+    }
     return 0;
 }

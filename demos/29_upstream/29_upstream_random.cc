@@ -13,7 +13,6 @@
 如果try_another配置为true，那么将在所有存活的目标中随机选择一个
 仅在main中选择，选中目标所在group的主备和无group的备都视为有效的可选对象
 */
-
 int main()
 {
     WFFacilities::WaitGroup wait_group(1);
@@ -27,13 +26,19 @@ int main()
     UpstreamManager::upstream_add_server("random_proxy.name", "127.0.0.1:8001");
     UpstreamManager::upstream_add_server("random_proxy.name", "127.0.0.1:8002");
     UpstreamManager::upstream_add_server("random_proxy.name", "www.sogou.com");
+    // todo : why use this?
     // UpstreamManager::upstream_add_server("random_proxy.name", "/dev/unix_domain_scoket_sample");
 
     auto http_task = WFTaskFactory::create_http_task("http://random_proxy.name/", 0, 0, 
     [&wait_group](WFHttpTask* task){
-        fprintf(stderr, "task done");
+        const void *body;
+		size_t body_len;
+		task->get_resp()->get_parsed_body(&body, &body_len);
+        fprintf(stderr, "%s\n", static_cast<const char *>(body));
+        fprintf(stderr, "task done\n");
         wait_group.done();
     });
+
     http_task->start();
     wait_group.wait();
     return 0;
