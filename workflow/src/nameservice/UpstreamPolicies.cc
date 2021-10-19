@@ -518,7 +518,11 @@ EndpointAddress *UPSWeightedRandomPolicy::first_strategy(const ParsedURI& uri,
 	temp_weight -= UPSWeightedRandomPolicy::select_history_weight(tracing);
 
 	if (temp_weight > 0)
+	{
 		x = rand() % temp_weight;
+		fprintf(stderr, "rand x : %d\n", x);
+	}
+		
 
 	for (idx = 0; idx < this->servers.size(); idx++)
 	{

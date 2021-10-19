@@ -6,7 +6,7 @@
 #include <vector>
 #include <string>
 
-void basic_callback(WFHttpTask *task, std::string& message)
+void basic_callback(WFHttpTask *task, std::string message)
 {
 	if (task->get_state() == WFT_STATE_SUCCESS)
 	{

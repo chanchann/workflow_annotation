@@ -10,6 +10,7 @@
 #include "util.h"
 
 static WFFacilities::WaitGroup wait_group(1);
+const int server_num = 3;
 
 void sig_handler(int signo)
 {
@@ -19,16 +20,16 @@ void sig_handler(int signo)
 void server_process(WFHttpTask *task, std::string& name)
 {
     auto *resp = task->get_resp();
-    // resp->add_header_pair("Content-Type", "text/plain");
-    resp->append_output_body_nocopy(static_cast<const void *>(name.c_str()), name.size());
+    fprintf(stderr, "name : %s\n", name.c_str());
+    resp->append_output_body(name);
 }
 
 int main()
 {
     signal(SIGINT, sig_handler);
-    std::vector<std::unique_ptr<WFHttpServer> > server_list(3);
+    std::vector<std::unique_ptr<WFHttpServer> > server_list(server_num);
     unsigned int port = 8000;
-    for (int i = 0; i < 3; i++)
+    for (int i = 0; i < server_num; i++)
     {
         server_list[i] = 
             util::make_unique<WFHttpServer>(std::bind(&server_process, 
@@ -40,11 +41,10 @@ int main()
             fprintf(stderr, "http server start failed");
             wait_group.done();
             break;
-        }
+        } 
     }
 
     wait_group.wait();
-    // todo : 做实验把这个丢进unique_ptr 的 deleter如何
     for(auto& server : server_list) {
         server->stop();
     }
