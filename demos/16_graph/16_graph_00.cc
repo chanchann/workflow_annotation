@@ -1,4 +1,3 @@
-#include <spdlog/spdlog.h>
 #include <workflow/WFTaskFactory.h>
 #include <workflow/WFGraphTask.h>
 #include <workflow/HttpMessage.h>
@@ -10,7 +9,7 @@ static WFFacilities::WaitGroup wait_group(1);
 
 void go_func(const size_t *size1, const size_t *size2)
 {
-	printf("page1 size = %zu, page2 size = %zu\n", *size1, *size2);
+	fprintf(stderr, "page1 size = %zu, page2 size = %zu\n", *size1, *size2);
 }
 
 void http_callback(WFHttpTask *task)
@@ -33,7 +32,7 @@ int main()
 	size_t size2;
 
 	WFTimerTask *timer = WFTaskFactory::create_timer_task(1000 * 1000, [](WFTimerTask *) {
-		spdlog::info("timer task complete(1s).");
+		fprintf(stderr, "timer task complete(1s).");
 	});
 
 	/* Http task1 */
@@ -53,7 +52,7 @@ int main()
 
 	/* Create a graph. Graph is also a kind of task */
 	WFGraphTask *graph = WFTaskFactory::create_graph_task([](WFGraphTask *) {
-		spdlog::info("Graph task complete. Wakeup main process");
+		fprintf(stderr, "Graph task complete. Wakeup main process");
 		wait_group.done();
 	});
 

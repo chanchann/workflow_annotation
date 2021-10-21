@@ -47,7 +47,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
 
 # add_subdirectory(${PROJECT_SOURCE_DIR}/14_restful)
 # add_subdirectory(${PROJECT_SOURCE_DIR}/15_file)
-# add_subdirectory(${PROJECT_SOURCE_DIR}/16_graph)
+add_subdirectory(${PROJECT_SOURCE_DIR}/16_graph)
 # add_subdirectory(${PROJECT_SOURCE_DIR}/17_go_task)
 
 # add_subdirectory(${PROJECT_SOURCE_DIR}/19_parallel)
