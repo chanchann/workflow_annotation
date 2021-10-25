@@ -1180,3 +1180,50 @@ https://github.com/sogou/workflow/issues/607
 104. terminal下看代码
 
 https://blog.csdn.net/guyongqiangx/article/details/70161189
+
+105. keepalive、idle状态对应alive_list、idle_list处理机制
+
+https://github.com/sogou/workflow/issues/202
+
+Q1 : 当CommConnEntry处于CONN_STATE_KEEPALIVE状态时，add entry alive_list；
+
+当CommConnEntry处于CONN_STATE_IDLE状态时，add entry idle_list;
+
+alive_list与idle_list有何区别？
+
+CONN_STATE_KEEPALIVE状态与CONN_STATE_IDLE状态有何区别？
+
+alive_list与idle_list释放的entry时机在什么情况下发生？
+
+A1 : 
+
+idle_list本来是所有的client connection处于keep_alive状态时用的，idle_list里的所有连接下一个动作一定是send。
+
+后来发现server处于准备回复状态的连接也很类似。
+
+所以对于server的target来讲，idle_list其实最多只有一个连接，并且处于收到请求但还没有回复的阶段。
+
+alive_list是service上的成员，保存该serivce上所有keep alive的连接。
+
+这个list唯一的作用是drain，就是当连接数达到上限时用于关掉比较久没有使用的连接，以及程序退出的时候关闭所有keep alive连接。
+
+Q2 : ref的主要功能是什么那？CommService中ref与CommConnEntry中ref区别？(entry->ref handle前加1，handle后减1)
+
+A2 : ref就是引用计数啊，service需要引用计数到0才解绑完成，connection要ref=0才能释放。
+
+因为异步环境下，连接随时可能被关闭，所有需要引用计数，相当于手动shared_ptr。
+
+Q3 : 以下宏中CONN_STATE_RECEIVING的含义是？(不知为何没有CONN_STATE_SEND状态);
+
+```
+#define CONN_STATE_CONNECTING 0
+#define CONN_STATE_CONNECTED 1
+#define CONN_STATE_RECEIVING 2
+#define CONN_STATE_SUCCESS 3
+#define CONN_STATE_IDLE 4
+#define CONN_STATE_KEEPALIVE 5
+#define CONN_STATE_CLOSING 6
+#define CONN_STATE_ERROR 7
+```
+
+A3 : 3、好像SENDING状态没有什么用，就没加。receiving就是正在收数据……

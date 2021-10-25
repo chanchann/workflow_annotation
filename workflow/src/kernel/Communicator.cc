@@ -1405,12 +1405,15 @@ void Communicator::deinit()
 
 int Communicator::nonblock_connect(CommTarget *target)
 {
+	// 创建cfd
 	int sockfd = target->create_connect_fd();
 
 	if (sockfd >= 0)
 	{
+		// 设置非阻塞
 		if (__set_fd_nonblock(sockfd) >= 0)
 		{
+			// 然后调用connec连接
 			if (connect(sockfd, target->addr, target->addrlen) >= 0 ||
 				errno == EINPROGRESS)
 			{
@@ -1431,7 +1434,7 @@ struct CommConnEntry *Communicator::launch_conn(CommSession *session,
 	struct CommConnEntry *entry;
 	int sockfd;
 	int ret;
-
+	// 1. target connect 建立连接
 	sockfd = this->nonblock_connect(target);
 	if (sockfd >= 0)
 	{
@@ -1441,6 +1444,7 @@ struct CommConnEntry *Communicator::launch_conn(CommSession *session,
 			ret = pthread_mutex_init(&entry->mutex, NULL);
 			if (ret == 0)
 			{
+				// 2. 创建新的CommConnection
 				entry->conn = target->new_connection(sockfd);
 				if (entry->conn)
 				{
@@ -1550,6 +1554,7 @@ int Communicator::request(CommSession *session, CommTarget *target)
 	int timeout;
 	int ret;
 
+	// 必须要是客户端
 	if (session->passive)
 	{
 		errno = EINVAL;
@@ -1561,7 +1566,7 @@ int Communicator::request(CommSession *session, CommTarget *target)
 	session->out = NULL;
 	session->in = NULL;
 	ret = this->request_idle_conn(session, target);
-	while (ret < 0)
+	while (ret < 0)    // todo : why while here
 	{
 		entry = this->launch_conn(session, target);
 		if (entry)
