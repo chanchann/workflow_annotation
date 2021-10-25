@@ -66,7 +66,13 @@ int main()
     UpstreamManager::upstream_create_manual(
         proxy_name,
         [](const char *path, const char *query, const char *fragment) -> unsigned int {
-            return atoi(fragment);
+            if (strcmp(query, "123") == 0)
+                return 1;      
+            else if (strcmp(query, "abc") == 0)
+                return 2;
+            else
+                return 0;
+            // url里，query为"123"的请求，打到127.0.0.1:8001，如果是"abc"，打到8082端口，其它打在8000端口
         },
         true,         //如果选择到已经熔断的目标，将进行二次选取
         nullptr);     //nullptr代表二次选取时使用框架默认的一致性哈希函数

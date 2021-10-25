@@ -213,11 +213,14 @@ int WFDnsClient::init(const std::string& url, const std::string& search_list,
 
 	id = 0;
 	// 因为可能设置多个nameserver的ip，我们把切开
+	// 比如 0.0.0.0,0.0.0.1:1,dns://0.0.0.2,dnss://0.0.0.3
+	// 切成 [0.0.0.0] [0.0.0.1] [dns://0.0.0.2] [dnss://0.0.0.3]
 	hosts = StringUtil::split_filter_empty(url, ',');
 	for (size_t i = 0; i < hosts.size(); i++)
 	{
 		host = hosts[i];
 		// 这里就是如果是裸的"xxx.xxx.xx" 就给他加上"dns://"
+		// 切成 [dns://0.0.0.0] [dns://0.0.0.1] [dns://0.0.0.2] [dnss://0.0.0.3]
 		if (strncasecmp(host.c_str(), "dns://", 6) != 0 &&
 			strncasecmp(host.c_str(), "dnss://", 7) != 0)
 		{

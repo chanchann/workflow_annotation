@@ -73,7 +73,7 @@ void WFResolverTask::dns_callback_internal(DnsOutput *dns_out,
 		struct addrinfo *addrinfo = dns_out->move_addrinfo();
 		const DnsCache::DnsHandle *addr_handle;
 
-		addr_handle = dns_cache->put(host_, port_, addrinfo,
+		addr_handle = (host_, port_, addrinfo,
 									 (unsigned int)ttl_default,
 									 (unsigned int)ttl_min);
         ...

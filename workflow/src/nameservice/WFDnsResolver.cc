@@ -292,7 +292,7 @@ void WFResolverTask::dispatch()
 	// https://github.com/chanchann/workflow_annotation/blob/main/src_analysis/other_02_dns_opt.md
 	// 此处逻辑较为乱
 	// 给出新版优化后代码解析
-	insert_dns_ = true;
+	insert_dns_ = true;  // 需要插入dns cache
 	if (dns_cache_level_ != DNS_CACHE_LEVEL_0)
 	{
 		auto *dns_cache = WFGlobal::get_dns_cache();
@@ -316,7 +316,7 @@ void WFResolverTask::dispatch()
 			break;
 		}
 
-		if (addr_handle)
+		if (addr_handle)   // 如果cache找到了
 		{
 			auto *route_manager = WFGlobal::get_route_manager();
 			struct addrinfo *addrinfo = addr_handle->value.addrinfo;
@@ -338,11 +338,12 @@ void WFResolverTask::dispatch()
 			else
 				this->state = WFT_STATE_SUCCESS;
 
-			insert_dns_ = false;
+			insert_dns_ = false;  // cache中有则不需要插入
 			dns_cache->release(addr_handle);
 		}
 	}
-
+	
+	// 没有找到cache，而且还有host
 	if (insert_dns_ && !host_.empty())
 	{
 		char front = host_.front();
@@ -376,6 +377,7 @@ void WFResolverTask::dispatch()
 	WFDnsClient *client = WFGlobal::get_dns_client();
 	const char *hosts = WFGlobal::get_global_settings()->hosts_path;
 
+	// 没有cache, 而且是client，且有hosts路径
 	if (insert_dns_ && client && hosts)
 	{
 		struct addrinfo *ai;
@@ -390,7 +392,7 @@ void WFResolverTask::dispatch()
 			insert_dns_ = false;
 		}
 	}
-
+	
 	if (insert_dns_ && !client)
 	{
 		auto&& cb = std::bind(&WFResolverTask::thread_dns_callback,

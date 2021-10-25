@@ -4,7 +4,6 @@
 #include <workflow/Workflow.h>
 #include <workflow/WFTaskFactory.h>
 #include <workflow/WFFacilities.h>
-#include <workflow/logger.h>
 #include <signal.h>
 
 using namespace protocol;
@@ -15,7 +14,7 @@ using namespace protocol;
 void http_callback(WFHttpTask *task)
 {
     HttpResponse *resp = task->get_resp();
-    LOG_INFO("Http status : %s", resp->get_status_code());
+    fprintf(stderr, "Http status : %s\n", resp->get_status_code());
 
     // response body
     const void *body;
@@ -27,7 +26,7 @@ void http_callback(WFHttpTask *task)
     fwrite(body, 1, body_len, fp);
     fclose(fp);
 
-    LOG_INFO("write file done");
+    fprintf(stderr, "write file done");
 }
 
 static WFFacilities::WaitGroup wait_group(1);
@@ -40,8 +39,8 @@ void sig_handler(int signo)
 int main()
 {
     signal(SIGINT, sig_handler);
-    logger_initConsoleLogger(stderr);
-	logger_setLevel(LogLevel_TRACE);
+    // logger_initConsoleLogger(stderr);
+	// logger_setLevel(LogLevel_TRACE);
     std::string url = "http://www.baidu.com";
     // 通过create_xxx_task创建的对象为任务，一旦创建，必须被启动或取消
     // 工厂函数创建的对象的生命周期均由内部管理

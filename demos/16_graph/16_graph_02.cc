@@ -4,6 +4,8 @@
 
 using namespace protocol;
 
+// https://github.com/sogou/workflow/issues/607
+
 static WFFacilities::WaitGroup wait_group(1);
 
 void sig_handler(int signo)
@@ -15,11 +17,10 @@ void http_callback(WFHttpTask *http_task)
 {
     HttpResponse *resp = http_task->get_resp();
     
-    // const void *body;
-    // size_t body_len;
-    // resp->get_parsed_body(&body, &body_len);
-    // fprintf(stderr, "body len : %zu\n", body_len);
-    fprintf(stderr, "resp : %s\n", resp->get_status_code());
+    const void *body;
+    size_t body_len;
+    resp->get_parsed_body(&body, &body_len);
+    fprintf(stderr, "body len : %zu\n", body_len);
 }
 
 int main()
@@ -34,7 +35,7 @@ int main()
         auto http_task_02 = WFTaskFactory::create_http_task("http://www.bing.com", 4, 2, http_callback);
         WFGraphNode& http_node_01 = graph->create_graph_node(http_task_01);
         WFGraphNode& http_node_02 = graph->create_graph_node(http_task_02);
-        http_node_01-->http_node_02;
+        // http_node_01-->http_node_02;    // 没有这句话就是没边 --> 并行
         
         **server_task << graph;
     });

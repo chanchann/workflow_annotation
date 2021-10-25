@@ -24,6 +24,7 @@
 #include "Communicator.h"
 #include "CommScheduler.h"
 
+
 class CommRequest : public SubTask, public CommSession
 {
 public:
@@ -41,7 +42,7 @@ public:
 	void set_wait_timeout(int timeout) { this->wait_timeout = timeout; }
 
 public:
-	virtual void dispatch();
+	virtual void dispatch();    // key
 
 protected:
 	int state;

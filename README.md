@@ -1,6 +1,4 @@
-# Using workflow in a modern way
-
-workflow中文注释 / demo / 问题解答
+## workflow中文注释 / demo / 问题解答
 
 ## workflow项目地址
 
@@ -29,6 +27,8 @@ https://github.com/sogou/workflow/issues/246
 todo : 此处需要源码细节分析
 
 3. srpc 的 compress有压缩算法
+
+https://github.com/sogou/srpc/tree/master/src/compress
 
 4. pread task 支持 文件分块读取
 
@@ -1173,3 +1173,10 @@ https://github.com/chanchann/workflow_annotation/blob/main/demos/26_resource_poo
 
 https://github.com/chanchann/workflow_annotation/blob/main/demos/26_resource_pool/26_issue_559_client.cc
 
+103. server端如何使用WFGraphNode
+
+https://github.com/sogou/workflow/issues/607
+
+104. terminal下看代码
+
+https://blog.csdn.net/guyongqiangx/article/details/70161189

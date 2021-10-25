@@ -1,0 +1,5 @@
+add_executable(30_kernel_comm_01 30_kernel_comm_01.cc)
+target_link_libraries(30_kernel_comm_01 workflow)
+
+add_executable(30_test_server 30_test_server.cc)
+target_link_libraries(30_test_server workflow)

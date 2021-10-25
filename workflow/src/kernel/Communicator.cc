@@ -39,10 +39,10 @@
 
 struct CommConnEntry
 {
-	struct list_head list;
+	struct list_head list;   // 用于串起来
 	CommConnection *conn;
 	long long seq;
-	int sockfd;
+	int sockfd;         // 每一个连接都是产生了个cfd的
 #define CONN_STATE_CONNECTING	0
 #define CONN_STATE_CONNECTED	1
 #define CONN_STATE_RECEIVING	2
@@ -54,10 +54,10 @@ struct CommConnEntry
 	int state;
 	int error;
 	int ref;
-	struct iovec *write_iov;
-	SSL *ssl;
-	CommSession *session;
-	CommTarget *target;
+	struct iovec *write_iov;      // 写缓冲区
+	SSL *ssl;									
+	CommSession *session;				
+	CommTarget *target;        // 对端的通信目标
 	CommService *service;
 	mpoller_t *mpoller;
 	/* Connection entry's mutex is for client session only. */
