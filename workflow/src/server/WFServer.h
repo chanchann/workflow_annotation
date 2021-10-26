@@ -68,6 +68,22 @@ public:
 	/* Start on port with IPv4. */
 	int start(unsigned short port)
 	{
+		// https://man7.org/linux/man-pages/man3/getaddrinfo.3.html
+		
+		// 当host = NULL 传进去时
+		// If the AI_PASSIVE flag is specified in hints.ai_flags, and node
+		// is NULL, then the returned socket addresses will be suitable for
+		// bind(2)ing a socket that will accept(2) connections. 
+		
+		// The returned socket address will contain the "wildcard address"
+		// (INADDR_ANY for IPv4 addresses, IN6ADDR_ANY_INIT for IPv6
+		// address).  
+		// The wildcard address is used by applications
+		// (typically servers) that intend to accept connections on any of
+		// the host's network addresses.  
+		
+		// If node is not NULL, then the AI_PASSIVE flag is ignored.
+
 		return start(AF_INET, NULL, port, NULL, NULL);
 	}
 

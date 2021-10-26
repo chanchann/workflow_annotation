@@ -303,7 +303,8 @@ public:
 // 网络task工厂
 // 所有由Workflow创建的xxxTask或xxxMessage等资源均由Workflow负责释放，
 // 用户只需要在资源生命周期结束之前通过指针或引用等方式访问公开接口
-// todo : 与上面WFTask作比较，
+// 上面WFTask是产生应用协议层的task
+// 而这里的task是产生client / server task, 与协议无关
 template<class REQ, class RESP>
 class WFNetworkTaskFactory
 {

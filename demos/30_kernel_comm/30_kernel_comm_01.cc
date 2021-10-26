@@ -1,6 +1,9 @@
 /*
 https://github.com/sogou/workflow/issues/200
 */
+
+// todo ： unifished 
+
 #include <workflow/Communicator.h>
 #include <workflow/HttpMessage.h>
 #include <workflow/WFFacilities.h>
@@ -10,6 +13,13 @@ https://github.com/sogou/workflow/issues/200
 
 class MyHttpSession : public CommSession
 {
+public: 
+    ~MyHttpSession() 
+    {
+        delete this->get_message_out();
+        delete this->get_message_in();
+        delete this;
+    }
 private:
     CommMessageOut *message_out() override { return new protocol::HttpRequest; }
     CommMessageIn *message_in() override { return new protocol::HttpResponse; }
@@ -22,12 +32,12 @@ private:
         // resp->get_parsed_body(&body, &body_len);
 
         // fprintf(stderr, "body : %s\n", static_cast<const char *>(body));
-        fprintf(stderr, "resp : %s\n", resp->get_status_code());
-        // fprintf()
-        delete this->get_message_out();
-        delete this->get_message_in();
-        delete this;
+        // fprintf(stderr, "resp : %s\n", resp->get_status_code());
+        fprintf(stderr, "123");
     }
+private:
+	int state;
+	int error;
 };
 
 static WFFacilities::WaitGroup wait_group(1);
@@ -36,7 +46,6 @@ void sig_handler(int signo)
 {
     wait_group.done();
 }
-
 
 int main()
 {

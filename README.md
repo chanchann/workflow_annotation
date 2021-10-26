@@ -1227,3 +1227,4 @@ Q3 : 以下宏中CONN_STATE_RECEIVING的含义是？(不知为何没有CONN_STAT
 ```
 
 A3 : 3、好像SENDING状态没有什么用，就没加。receiving就是正在收数据……
+
