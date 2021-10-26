@@ -343,6 +343,50 @@ static int __poller_append_message(const void *buf, size_t *n,
 								   struct __poller_node *node,
 								   poller_t *poller)
 {
+
+	/*
+	struct __poller_node
+	{
+		int state;    
+		int error;
+		struct poller_data data;
+	#pragma pack(1)
+		union
+		{
+			struct list_head list;
+			struct rb_node rb;
+		};
+	#pragma pack()
+		char in_rbtree;
+		char removed;
+		int event;
+		struct timespec timeout;
+		struct __poller_node *res;
+	};
+	*/
+	/*
+	struct poller_data
+	{
+		short operation;
+		unsigned short iovcnt;
+		int fd;
+		union
+		{
+			SSL *ssl;
+			void *(*accept)(const struct sockaddr *, socklen_t, int, void *);
+			void *(*event)(void *);
+			void *(*notify)(void *, void *);  
+		};
+		void *context;
+		union
+		{
+			poller_message_t *message;
+			struct iovec *write_iov;
+			void *result;
+		};
+	};
+	*/
+
 	poller_message_t *msg = node->data.message;
 	struct __poller_node *res;
 	int ret;
@@ -427,6 +471,7 @@ static void __poller_handle_read(struct __poller_node *node,
 
 	while (1)
 	{
+		// char buf[POLLER_BUFSIZE];
 		p = poller->buf;
 		if (node->data.ssl)
 		{
@@ -439,6 +484,7 @@ static void __poller_handle_read(struct __poller_node *node,
 		}
 		else
 		{
+			// 读到poller->buf 中
 			nleft = read(node->data.fd, p, POLLER_BUFSIZE);
 			if (nleft < 0)
 			{

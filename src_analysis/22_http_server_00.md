@@ -8,6 +8,8 @@
 
 https://github.com/chanchann/workflow_annotation/blob/main/demos/07_http/http_no_reply.cc
 
+我们先看看server有什么基本的的部件
+
 ## WFHttpServer
 
 ```cpp
@@ -36,7 +38,6 @@ public:
 	{
 	}
 
-
 protected:
 	virtual CommSession *new_session(long long seq, CommConnection *conn);
 
@@ -53,8 +54,15 @@ protected:
 
 3. params
 
-4. new_session 产生一次交互
+4. new_session 产生一次交互，其实就是产生server_task
 
+```
+note : workflow 就是一来一回的方式
+
+因为是异步框架，他干什么事情都把事情挂在epoll上监听，到事件来临，把结果写到res中，放到msgqueue中
+
+然后让handler thread消费，看是哪种类型，产生相应的动作
+```
 
 ### WFServerBase
 
@@ -118,6 +126,8 @@ private:
 
 还有一个需要注意的是 `WFServerBase` 继承自 `CommService`
 
+`CommService`  用来产生listenfd, 产生新的连接
+
 ### new_session
 
 ```cpp
@@ -136,7 +146,11 @@ CommSession *WFServer<REQ, RESP>::new_session(long long seq, CommConnection *con
 }
 ```
 
-这里的CommSession 就是server_task, 设置好各种参数
+这里的 `CommSession` 就是 `server_task`, 并且设置好各种参数
+
+CommSession是一次req->resp的交互，主要要实现message_in(), message_out()等几个虚函数，让核心知道怎么产生消息。
+
+对server来讲，session是被动产生的(后面来看看如何产生)
 
 ### WFNetworkTaskFactory
 

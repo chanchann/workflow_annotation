@@ -186,7 +186,7 @@ int WFServerBase::start(int family, const char *host, unsigned short port,
 						const char *cert_file, const char *key_file)
 {
 	struct addrinfo hints = {
-		.ai_flags		=	AI_PASSIVE,
+		.ai_flags		=	AI_PASSIVE,   // key
 		.ai_family		=	family,
 		.ai_socktype	=	SOCK_STREAM,
 	};
@@ -195,7 +195,7 @@ int WFServerBase::start(int family, const char *host, unsigned short port,
 	int ret;
 
 	snprintf(port_str, PORT_STR_MAX + 1, "%d", port);
-	ret = getaddrinfo(host, port_str, &hints, &addrinfo);
+	ret = getaddrinfo(host, port_str, &hints, &addrinfo);  // host = null
 	if (ret == 0)
 	{
 		ret = start(addrinfo->ai_addr, (socklen_t)addrinfo->ai_addrlen,
