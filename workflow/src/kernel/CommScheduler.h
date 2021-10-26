@@ -110,6 +110,10 @@ private:
 	friend class CommSchedTarget;
 };
 
+
+// 仅有一个成员变量Communicator
+// 对于Communicator来说就是对外封装了一层
+// 加入了一些逻辑操作，本质上都是comm的操作
 class CommScheduler
 {
 public:
@@ -155,6 +159,7 @@ public:
 		return this->comm.push(buf, size, session);
 	}
 
+	// 这里的service为了产生sockfd
 	int bind(CommService *service)
 	{
 		return this->comm.bind(service);

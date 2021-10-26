@@ -156,6 +156,7 @@ poller_t *poller_create(const struct poller_params *params)
 	poller->max_open_files = n;
 	poller->create_message = params->create_message;
 	poller->partial_written = params->partial_written;
+	// callback			=	Communicator::callback,
 	poller->cb = params->callback;
 	poller->ctx = params->context;
 

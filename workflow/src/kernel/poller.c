@@ -591,6 +591,7 @@ static void __poller_handle_listen(struct __poller_node *node,
 	while (1)
 	{
 		len = sizeof (struct sockaddr_storage);
+		// 1. 这里调用了accept建立连接
 		sockfd = accept(node->data.fd, (struct sockaddr *)&ss, &len);
 		if (sockfd < 0)
 		{
@@ -599,7 +600,8 @@ static void __poller_handle_listen(struct __poller_node *node,
 			else
 				break;
 		}
-
+        // data.accept = Communicator::accept;
+        // 2. 调用Communicator::accept，初始化
 		p = node->data.accept((const struct sockaddr *)&ss, len,
 							  sockfd, node->data.context);
 		if (!p)
@@ -609,6 +611,16 @@ static void __poller_handle_listen(struct __poller_node *node,
 		res->data.result = p;
 		res->error = 0;
 		res->state = PR_ST_SUCCESS;
+		
+        // .callback			=	Communicator::callback,
+        /*
+            void Communicator::callback(struct poller_result *res, void *context)
+            {
+                Communicator *comm = (Communicator *)context;
+                msgqueue_put(res, comm->queue);
+            }
+        */
+        // 放回结果到msgqueue中
 		poller->cb((struct poller_result *)res, poller->ctx);
 
 		res = (struct __poller_node *)malloc(sizeof (struct __poller_node));
@@ -1192,6 +1204,7 @@ poller_t *poller_create(const struct poller_params *params)
 					poller->max_open_files = n;
 					poller->create_message = params->create_message;
 					poller->partial_written = params->partial_written;
+					// .callback			=	Communicator::callback,
 					poller->cb = params->callback;
 					poller->ctx = params->context;
 

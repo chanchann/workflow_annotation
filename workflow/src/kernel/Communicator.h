@@ -196,6 +196,9 @@ public:
 
 /*
 CommService就是服务了，主要是new_session()的实现，因为对server来讲，session是被动产生的。
+* 
+* 用来产生listenfd
+* 产生新的连接
 */
 class CommService
 {
@@ -296,7 +299,7 @@ public:
 #endif
 
 /*
-
+用于通信用的类
 */
 class Communicator
 {

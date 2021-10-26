@@ -162,6 +162,7 @@ struct poller_params
 	};
 	一切都是为了减少内存分配释放。总之最重要的是记得要自行free。
 	*/
+	// .callback			=	Communicator::callback,
 	void (*callback)(struct poller_result *, void *);  
 	void *context;
 };
