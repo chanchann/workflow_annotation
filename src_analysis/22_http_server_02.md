@@ -116,6 +116,184 @@ static int __poller_append_message(const void *buf, size_t *n,
 
 把在poller中读到的数据放进msgqueue中处理
 
+这里有两个比较核心
+
+1. msg = poller->create_message(node->data.context);
+
+2. msg->append(buf, n, msg);
+
+### create_message
+
+```cpp
+struct __poller
+{
+	...
+	poller_message_t *(*create_message)(void *); 
+	...
+```
+
+发生读事件时创建一条消息。poller既不是proactor也不是reactor，而是以完整的一条消息为交互单位。
+
+其中的void *参数来自于struct poller_data里的void *context（注意不是poller_params里的context）。
+
+poller_message_t是一条完整的消息，这是一个变长结构体，需要而且只需要实现append
+
+```
+note:
+
+按理READ操作的create_message和LISTEN操作的accept是对应关系，
+
+但是create_message是全局的（poller_params里），
+
+而accpet却在poller_data里，非常不对称。
+
+这个原因看我们主分枝的poller.h就明白了，poller_data里第一个union我们放了一个SSL *，
+
+如果吧create_message放到poller_data里，SSL *就不得不独立占有一个域，那么每个poller_data会增加8个字节（64bits系统下）。
+```
+
+读操作中，poller_add时一般需要把message置为NULL（除非是续传，message指向之前的不完整消息），
+
+context置为poller_params里create_message时的参数，
+
+operation置为PD_OP_READ
+
+fd则是nonblocking的文件fd。
+
+callback以SUCCESS返回时，message指向成功读取的消息，
+
+其它的域与poller_add传入的相同，fd的读操作继续进行。
+
+以非SUCCESS返回时，message可能为NULL，也可能指向一个不完整的消息，fd交还用户（可以重新poller_add续传）
+
+那么这个`create_message`究竟是什么呢
+
+```cpp
+poller_t *poller_create(const struct poller_params *params)
+{
+	...
+	poller->create_message = params->create_message;
+	...
+}
+```
+
+```cpp
+struct poller_params params = {
+	...
+	.create_message		=	Communicator::create_message,
+	...
+};
+```
+
+### Communicator::create_message
+
+```cpp
+
+poller_message_t *Communicator::create_message(void *context)
+{
+	struct CommConnEntry *entry = (struct CommConnEntry *)context;
+	CommSession *session;
+
+	if (entry->state == CONN_STATE_IDLE)
+	{
+		pthread_mutex_t *mutex;
+
+		if (entry->service)
+			mutex = &entry->target->mutex;
+		else
+			mutex = &entry->mutex;
+
+		pthread_mutex_lock(mutex);
+		/* do nothing */
+		pthread_mutex_unlock(mutex);
+	}
+
+	if (entry->state == CONN_STATE_CONNECTED ||
+		entry->state == CONN_STATE_KEEPALIVE)
+	{
+		if (Communicator::create_service_session(entry) < 0)
+			return NULL;
+	}
+	else if (entry->state != CONN_STATE_RECEIVING)
+	{
+		errno = EBADMSG;
+		return NULL;
+	}
+
+	session = entry->session;
+	session->in = session->message_in();
+	if (session->in)
+	{
+		session->in->poller_message_t::append = Communicator::append;
+		session->in->entry = entry;
+	}
+
+	return session->in;
+}
+```
+
+这一段主要几个重点
+
+1. CONN_STATE_IDLE 时，啥也不做
+
+2. create_service_session
+
+3. session->in->poller_message_t::append = Communicator::append;
+
+## Communicator::create_service_session
+
+```cpp
+int Communicator::create_service_session(struct CommConnEntry *entry)
+{
+	pthread_mutex_lock(&service->mutex);
+	if (entry->state == CONN_STATE_KEEPALIVE)
+		list_del(&entry->list);
+	else if (entry->state != CONN_STATE_CONNECTED)
+		entry = NULL;
+
+	pthread_mutex_unlock(&service->mutex);
+
+	session = service->new_session(entry->seq, entry->conn);
+	...
+	session->passive = 1;
+	entry->session = session;
+	session->target = target;
+	session->conn = entry->conn;
+	session->seq = entry->seq++;
+	session->out = NULL;
+	session->in = NULL;
+
+	timeout = Communicator::first_timeout_recv(session);
+	mpoller_set_timeout(entry->sockfd, timeout, entry->mpoller);
+	entry->state = CONN_STATE_RECEIVING;
+
+	((CommServiceTarget *)target)->incref();
+		return 0;
+	...	
+}
+
+```
+
+这里最为重要的就是`session = service->new_session(entry->seq, entry->conn);`
+
+我们这里的new_session实际上是
+
+```cpp
+template<class REQ, class RESP>
+CommSession *WFServer<REQ, RESP>::new_session(long long seq, CommConnection *conn)
+{
+	using factory = WFNetworkTaskFactory<REQ, RESP>;
+	WFNetworkTask<REQ, RESP> *task;
+
+	task = factory::create_server_task(this, this->process);
+	task->set_keep_alive(this->params.keep_alive_timeout);
+	task->set_receive_timeout(this->params.receive_timeout);
+	task->get_req()->set_size_limit(this->params.request_size_limit);
+
+	return task;
+}
+```
+
 ## Communicator::handle_read_result
 
 于是消费者msgqueue get来消费啦
@@ -177,5 +355,22 @@ void Communicator::handle_incoming_request(struct poller_result *res)
     }
 
 }
+```
 
+这里最为核心的是`session->handle(state, res->error);`
+
+## WFServerTask<REQ, RESP>::handle
+
+```cpp
+
+template<class REQ, class RESP>
+void WFServerTask<REQ, RESP>::handle(int state, int error)
+{
+	....
+	this->state = WFT_STATE_TOREPLY;
+	this->target = this->get_target();
+	new Series(this);
+	this->processor.dispatch();
+	...
+}
 ```

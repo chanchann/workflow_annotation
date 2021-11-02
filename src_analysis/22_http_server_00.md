@@ -249,4 +249,5 @@ protected:
 
 1. 首先每一个task都是一次交互，所以我们得实现`message_out`, `message_in`, `handle`
 
-2. 这里还有两个内部类，`Processor`, `Series`
+2. 这里还有两个内部类，`Processor`, `Series`, 这个我们在分析流程的时候看看，到底有何用
+

@@ -1222,6 +1222,7 @@ poller_message_t *Communicator::create_message(void *context)
 
 	if (entry->state == CONN_STATE_IDLE)
 	{
+		// todo : 这里？？？
 		pthread_mutex_t *mutex;
 
 		if (entry->service)
