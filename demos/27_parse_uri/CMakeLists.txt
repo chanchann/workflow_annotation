@@ -3,3 +3,6 @@ target_link_libraries(27_uri_parser_01 workflow)
 
 add_executable(27_request_uri_split 27_request_uri_split.cc)
 target_link_libraries(27_request_uri_split workflow)
+
+add_executable(27_unorderd_split 27_unorderd_split.cc)
+target_link_libraries(27_unorderd_split workflow)

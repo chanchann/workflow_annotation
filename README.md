@@ -231,7 +231,11 @@ https://github.com/sogou/workflow/blob/master/docs/about-connection-context.md
 
 22. chunked编码的http body如何最高效访问
 
-很多情况下我们使用HttpMessage::get_parsed_body()来获得http消息体。但从效率角度上考虑，我们并不自动为用户解码chunked编码，而是返回原始body。解码chunked编码可以用HttpChunkCursor，例如
+很多情况下我们使用HttpMessage::get_parsed_body()来获得http消息体。
+
+但从效率角度上考虑，我们并不自动为用户解码chunked编码，而是返回原始body。
+
+解码chunked编码可以用HttpChunkCursor，例如
 
 ```cpp
 #include "workflow/HttpUtil.h"
@@ -250,7 +254,9 @@ void http_callback(WFHttpTask *task)
 }
 ```
 
-cursor.next操作每次返回一个chunk的起始位置指针和chunk大小，不进行内存拷贝。使用HttpChunkCursor之前无需判断消息是不是chunk编码，因为非chunk编码也可以认为整体就是一个chunk。
+cursor.next操作每次返回一个chunk的起始位置指针和chunk大小，不进行内存拷贝。
+
+使用HttpChunkCursor之前无需判断消息是不是chunk编码，因为非chunk编码也可以认为整体就是一个chunk。
 
 23. 能不能在callback或process里同步等待一个任务完成
 
