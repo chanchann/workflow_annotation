@@ -1,3 +1,9 @@
-add_executable(file_server file_server.cc)
-target_link_libraries(file_server workflow spdlog::spdlog)
+add_executable(15_file_server_01 15_file_server_01.cc)
+target_link_libraries(15_file_server_01 workflow)
+
+add_executable(15_file_server_02 15_file_server_02.cc)
+target_link_libraries(15_file_server_02 workflow)
+
+
+
 

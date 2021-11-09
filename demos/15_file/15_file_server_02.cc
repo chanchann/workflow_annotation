@@ -1,4 +1,11 @@
-// 主要展示了磁盘IO任务的用法。在Linux系统下，我们利用了Linux底层的aio接口，文件读取完全异步。
+/*
+我们现在文件任务已经支持文件名接口了，你也可以用文件名来产生任务，无需维护fd。
+
+内部每次任务都打开和关闭fd。
+
+WFFileIOTask *create_pwrite_task(const std::string& pathname, const void *buf, size_t count, off_t offset,
+                                                           fio_callback_t callback);
+*/
 
 #include <signal.h>
 #include <fcntl.h>
@@ -12,7 +19,7 @@
 #include <workflow/WFTaskFactory.h>
 #include <workflow/Workflow.h>
 #include <workflow/WFFacilities.h>
-#include <spdlog/spdlog.h>
+#include <sys/stat.h>
 
 using namespace protocol;
 
@@ -34,7 +41,6 @@ void pread_callback(WFFileIOTask *task)
     // server_task 的resp
     HttpResponse *resp = static_cast<HttpResponse *>(task->user_data);
 
-    close(args->fd);  // 目前我们这套接口需要用户自行打开关闭fd
     if (task->get_state() != WFT_STATE_SUCCESS || ret < 0)
     {
         resp->set_status_code("503");
@@ -50,7 +56,7 @@ void process(WFHttpTask *server_task, const std::string &root)
     HttpRequest *req = server_task->get_req();
     HttpResponse *resp = server_task->get_resp();
     const char *uri = req->get_request_uri();
-    spdlog::info("Request-URI: {}", uri);
+    fprintf(stderr, "Request-URI: %s\n", uri);
 
     const char *p = uri;
     while (*p && *p != '?')
@@ -60,34 +66,28 @@ void process(WFHttpTask *server_task, const std::string &root)
     abs_path = root + abs_path;
     if (abs_path.back() == '/')
         abs_path += "index.html";
-    spdlog::info("abs_path : {}", abs_path);
+    fprintf(stderr, "abs_path : %s\n", abs_path.c_str());
 
     resp->add_header_pair("Server", "Sogou C++ Workflow Server");
 
-    // 我们不占用任何线程读取文件，而是产生一个异步的读文件任务，在读取完成之后回复请求
-    // 我们需要把完整回复数据读取到内存，才开始回复消息。所以不适合用来传输太大的文件。
-    // todo : 太大文件传输怎么做
-    int fd = open(abs_path.c_str(), O_RDONLY);
-    if (fd >= 0)
-    {
-        size_t size = lseek(fd, 0, SEEK_END);
-        void *buf = malloc(size); /* As an example, assert(buf != NULL); */
-        WFFileIOTask *pread_task = WFTaskFactory::create_pread_task(fd, buf, size, 0,
-                                                                    pread_callback);
-        /* To implement a more complicated server, please use series' context
-		 * instead of tasks' user_data to pass/store internal data. */
-        pread_task->user_data = resp; /* pass resp pointer to pread task. */
-        server_task->user_data = buf; /* to free() in callback() */
-        // 在回复完成后，我们会free()这块内存
-        server_task->set_callback([](WFHttpTask *t)
-                                  { free(t->user_data); });
-        series_of(server_task)->push_back(pread_task);
-    }
-    else
-    {
-        resp->set_status_code("404");
-        resp->append_output_body("<html>404 Not Found.</html>");
-    }
+    struct stat st;
+    stat(abs_path.c_str(), &st);
+    size_t size = st.st_size;
+    void *buf = malloc(size);
+    
+    // WFFileIOTask *create_pwrite_task(const std::string& pathname, const void *buf, size_t count, off_t offset,
+    //                                                         fio_callback_t callback);
+    WFFileIOTask *pread_task = WFTaskFactory::create_pread_task(abs_path, buf, size, 0,
+                                                                pread_callback);
+    /* To implement a more complicated server, please use series' context
+        * instead of tasks' user_data to pass/store internal data. */
+    pread_task->user_data = resp; /* pass resp pointer to pread task. */
+    server_task->user_data = buf; /* to free() in callback() */
+    // 在回复完成后，我们会free()这块内存
+    server_task->set_callback([](WFHttpTask *t)
+                                { free(t->user_data); });
+    series_of(server_task)->push_back(pread_task);
+
 }
 
 static WFFacilities::WaitGroup wait_group(1);
@@ -112,7 +112,7 @@ int main()
     }
     else
     {
-        spdlog::critical("start server failed");
+        fprintf(stderr, "start server failed");
         exit(1);
     }
 
