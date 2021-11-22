@@ -41,7 +41,7 @@
 
 // 这几个任务都是网路任务，都WFNetworkTask实例化模板
 // 只是其中的协议不同而已
-using WFHttpTask = WFNetworkTask<protocol::HttpRequest,
+using WFHttpTask = <protocol::HttpRequest,
 								 protocol::HttpResponse>;
 using http_callback_t = std::function<void (WFHttpTask *)>;
 

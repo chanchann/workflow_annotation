@@ -48,7 +48,7 @@ void mpoller_destroy(mpoller_t *mpoller);
 struct __mpoller
 {
 	unsigned int nthreads;
-	poller_t *poller[1];  // todo : 这里为何用个[1]
+	poller_t *poller[1];  // 至少为1
 };
 
 static inline int mpoller_add(const struct poller_data *data, int timeout,
