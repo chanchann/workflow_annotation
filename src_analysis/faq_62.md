@@ -1,6 +1,6 @@
 ## faq 62 : 看了下proxy的教程，原始的task在serie没有结束的时候是不会被销毁的，对吗?
 
-task分为两种情况来看看，一种client的情况，一种server的情况
+task分为两种情况来分析看看，一种client的情况，一种server的情况
 
 client task的“执行”，指的是“发送request - 收回response”；
 
@@ -141,13 +141,13 @@ poller_message_t *Communicator::create_message(void *context)
 
 [http_server_00](22_http_server_00.md)
 
-[http_server_00](22_http_server_01.md)
+[http_server_01](22_http_server_01.md)
 
-[http_server_00](22_http_server_02.md)
+[http_server_02](22_http_server_02.md)
 
 server“回复response”的时机是series里没有东西了再回复（毕竟我们要实现异步server）
 
-因为我们把WFServerTask设置为last，等到这个task dispatch的时候reply
+因为我们把WFServerTask设置为last，等到最后执行这个task dispatch的时候reply
 
 ```cpp
 virtual void dispatch()
@@ -171,7 +171,7 @@ virtual void dispatch()
 
 这个说法错误，可见 https://github.com/chanchann/workflow_annotation/issues/1
 
-这个在done中我们可以看出
+他在这里dispatch 完 依旧是 走到 `WFNetworkTask::done`
 
 ```cpp
 virtual SubTask *done()
@@ -192,4 +192,8 @@ virtual SubTask *done()
 }
 ```
 
-callback依然可以向series里添加任务。这个时候我们server task被delete掉，但是series中还有task，会继续pop出来dispatch执行，显然server task生命周期和series不一样。
+此处callback依然可以向series里添加任务。这个时候我们server task被delete掉，但是series中还有task，会继续pop出来dispatch执行，显然server task生命周期和series不一样。
+
+## 结论
+
+client和server两种情况，虽然说产生的方式不同，但是到最后执行都是到`WFNetworkTask::done`，他们结束的方式和时机是相同的，在这里delete this，和series是无关的
