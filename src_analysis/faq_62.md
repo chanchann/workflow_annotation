@@ -1,4 +1,4 @@
-## faq 62 : 看了下proxy的教程，原始的task在serie没有结束的时候是不会被销毁的，对吗?
+## faq 62 : 看了下proxy的教程，原始的task在series没有结束的时候是不会被销毁的，对吗?
 
 task分为两种情况来分析看看，一种client的情况，一种server的情况
 
@@ -165,7 +165,7 @@ virtual void dispatch()
 }
 ```
 
-具体分析可见 [http_server_00](22_http_server_02.md)
+具体分析可见 [http_server_02](22_http_server_02.md)
 
 注意这个说法 : server task的生命会持续到series结束，本质是在于它还没执行完回复。
 
