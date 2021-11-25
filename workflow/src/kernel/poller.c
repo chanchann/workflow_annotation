@@ -80,7 +80,8 @@ struct __poller
 	// 其中的void *参数来自于struct poller_data里的void *context（注意不是poller_params里的context）。
 	// poller_message_t是一条完整的消息，这是一个变长结构体，需要而且只需要实现append
 	poller_message_t *(*create_message)(void *); 
-	// 写的时候表示写成功了一部分数据，一般用来更新下一个超时。参数void *是poller_data里的context。
+	// 写的时候表示写成功了一部分数据，一般用来更新下一个超时。
+	// 参数void *是poller_data里的context。
 	int (*partial_written)(size_t, void *);
 	// 用于返回结果，参数是一个poller_result和context。
 	void (*cb)(struct poller_result *, void *);

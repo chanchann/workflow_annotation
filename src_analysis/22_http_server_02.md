@@ -362,7 +362,6 @@ void Communicator::handle_incoming_request(struct poller_result *res)
 ## WFServerTask<REQ, RESP>::handle
 
 ```cpp
-
 template<class REQ, class RESP>
 void WFServerTask<REQ, RESP>::handle(int state, int error)
 {
@@ -372,5 +371,126 @@ void WFServerTask<REQ, RESP>::handle(int state, int error)
 	new Series(this);
 	this->processor.dispatch();
 	...
+}
+```
+
+### Series
+
+这里和client的task一样，启动了个Series, (task都在series中执行)
+
+这里的Series是WFServerTask的内部类，继承自SeriesWork, 增加了个`CommService`
+
+```cpp
+class Series : public SeriesWork
+{
+public:
+	Series(WFServerTask<REQ, RESP> *task) :
+		SeriesWork(&task->processor, nullptr)
+	{
+		this->set_last_task(task);
+		this->service = task->service;
+		this->service->incref();
+	}
+
+	virtual ~Series()
+	{
+		this->callback = nullptr;
+		this->service->decref();
+	}
+
+	CommService *service;
+};
+```
+
+其中CommService的ref就是引用计数啊，service需要引用计数到0才解绑完成，connection要ref=0才能释放。因为异步环境下，连接随时可能被关闭，所有需要引用计数，相当于手动shared_ptr。
+
+注意此处`new Series(this);`, 我们把本server_task 设置为最后一个task `this->set_last_task(task)`
+
+这里非常重要，结合后面流程看
+
+### processor
+
+然后调用`this->processor.dispatch()`
+
+其中processor也是WFServerTask的内部类
+
+```cpp
+class Processor : public SubTask
+{
+public:
+	Processor(WFServerTask<REQ, RESP> *task,
+				std::function<void (WFNetworkTask<REQ, RESP> *)>& proc) :
+		process(proc)
+	{
+		this->task = task;
+	}
+
+	virtual void dispatch()
+	{
+		this->process(this->task);
+		this->task = NULL;	/* As a flag. get_conneciton() disabled. */
+		this->subtask_done();
+	}
+
+	virtual SubTask *done()
+	{
+		return series_of(this)->pop();
+	}
+
+	std::function<void (WFNetworkTask<REQ, RESP> *)>& process;
+	WFServerTask<REQ, RESP> *task;
+} processor;
+```
+
+其中有两个重要的成员变量，一个就是我们外部自己设置的server task核心逻辑`process`，一个就是此server task
+
+在`WFServerTask` 构造的时候已经赋值好了。
+
+然后结合我们一般的使用，我们经常会在server_task 后面 串上其他的task
+
+```cpp
+**server_task << other_task; 
+```
+
+所以这里subtask_done后走到done，把series下一个任务取出来继续运行
+
+### 再次梳理整个task执行次序
+
+我们先执行`this->processor.dispatch()`, 把`process` 逻辑先执行，然后把串到server_task中的其他后续流程挨着执行，最后我们执行一开始设置为last的server task本身
+
+```cpp
+virtual void dispatch()
+{
+	if (this->state == WFT_STATE_TOREPLY)
+	{
+		/* Enable get_connection() again if the reply() call is success. */
+		this->processor.task = this;
+		if (this->scheduler->reply(this) >= 0)
+			return;
+		...
+	}
+
+	this->subtask_done();
+}
+```
+
+然后这里回复response，然后subtask_done -> done(WFNetworkTask) 再次回到， 执行callback，然后销毁这个task，和client一样了
+
+```cpp
+virtual SubTask *done()
+{
+	SeriesWork *series = series_of(this);
+
+	if (this->state == WFT_STATE_SYS_ERROR && this->error < 0)
+	{
+		this->state = WFT_STATE_SSL_ERROR;
+		this->error = -this->error;
+	}
+
+	if (this->callback)
+		this->callback(this);
+
+	delete this;
+	return series->pop();
 }
 ```

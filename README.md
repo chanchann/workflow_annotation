@@ -789,23 +789,9 @@ protected:
 
 62. proxy
 
-Q : 看了下proxy的教程，原始的task在serie没有结束的时候是不会被销毁的，对吗。
+Q : 看了下proxy的教程，原始的task在serie没有结束的时候是不会被销毁的，对吗?
 
-如果task没执行，那就是还在series的队列里呢，不会销毁～如果task执行完了就销毁了～
-
-But
-
-server的话，就不一样了哈，server的task是被动产生的，所以它会持续到series结束。而proxy的例子是个server的task
-
-这个区分角度是从task是我们主动创建还是被动创建区分的。mysql task我们一般只用做client～就是执行完销毁的
-
-为什么server task是这样的。
-
-1) 因为client task的“执行”，指的是“发送request - 收回response”；而server task的“执行”，指的是“收到request - 回复response”；
-
-2) 而server“回复response”的时机是series里没有东西了再回复（毕竟我们要实现异步server）；
-
-3) 所以server task的生命会持续到series结束，本质是在于它还没执行完回复。
+见[analysis](./src_analysis/faq_62.md)
 
 63. https 代理
 
