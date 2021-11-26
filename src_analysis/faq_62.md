@@ -196,4 +196,10 @@ virtual SubTask *done()
 
 ## 结论
 
-client和server两种情况，虽然说产生的方式不同，但是到最后执行都是到`WFNetworkTask::done`，他们结束的方式和时机是相同的，在这里delete this，和series是无关的
+client和server两种情况，虽然说产生的方式不同，但是到最后执行都是到WFNetworkTask::done，他们结束的方式和时机是相同的，在这里delete this，和series是无关的
+
+update: 在新版代码中，delete操作defer了，详细可见
+
+[task defer analysis](other_04_task_defer_delete.md)
+
+总的来说，任何task生命周期都是到callback结束，callback之后就不能再访问了。而内部实际delete task的时机，不一定是callback之后立刻进行(见新代码解析)。但这个和用户的使用无关，callback之后不能再使用task。
