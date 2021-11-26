@@ -97,7 +97,48 @@ public:
 };
 ```
 
-这里ref就是引用计数，service需要引用计数到0才解绑完成，connection要ref=0才能释放。因为异步环境下，连接随时可能被关闭，所有需要引用计数，相当于手动shared_ptr。这里相当于把他的生命周期延长到Series结束。
+这里ref就是引用计数，service需要引用计数到0才解绑完成,相当于手动shared_ptr。
 
-而我们新版代码中，知道Series结束才delete，就减少了这两个用于延长生命周期的原子操作。
+```cpp
+void decref()
+{
+    if (__sync_sub_and_fetch(&this->ref, 1) == 0)
+        this->handle_unbound();
+}
+```
+
+```cpp
+void WFServerBase::handle_unbound()
+{
+	this->mutex.lock();
+	this->unbind_finish = true;
+	this->cond.notify_one();
+	this->mutex.unlock();
+}
+```
+
+这里notify了，我们看看哪里在wait
+
+```cpp
+void WFServerBase::wait_finish()
+{
+	SSL_CTX *ssl_ctx = this->get_ssl_ctx();
+	std::unique_lock<std::mutex> lock(this->mutex);
+
+	while (!this->unbind_finish)
+		this->cond.wait(lock);
+
+	this->deinit();
+	this->unbind_finish = false;
+	lock.unlock();
+	if (ssl_ctx)
+		SSL_CTX_free(ssl_ctx);
+}
+```
+
+到这里就deinit结束。
+
+这里相当于把他的生命周期延长到Series结束才终结。
+
+而我们新版代码中，直到Series结束才delete，就减少了这两个用于延长生命周期的原子操作。
 
