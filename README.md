@@ -1220,3 +1220,125 @@ Q3 : 以下宏中CONN_STATE_RECEIVING的含义是？(不知为何没有CONN_STAT
 
 A3 : 3、好像SENDING状态没有什么用，就没加。receiving就是正在收数据……
 
+106. 关于WORKFLOW同一个进程内开多个HTTPSERVER的问题
+
+https://github.com/sogou/workflow/issues/660
+
+[详细解析](./demos/32_cpu_server)
+
+107. Workflow遇到DNS解析出多个IP的处理
+
+https://github.com/sogou/workflow/issues/659
+
+todo 源码分析
+
+108. 通过workflow实现转发功能的问题 
+
+场景：A服务器通过代理服务器发消息给服务器B，B服务器需要根据A的IP来判断是否可以访问。
+
+只有B服务器有服务器白名单IP的列表。代理服务器怎么使用workflow实现，来让B能识别A的ip。
+
+https://github.com/sogou/workflow/issues/658
+
+在proxy的process里，把A的地址拿出来，放到http header里转给B：
+
+```cpp
+void proxy_process(WFHttpTask *task)
+{
+    struct sockaddr_storage ss;
+    socklen_t addrlen = sizeof ss;
+    if (task->get_peer_addr(&ss, &addrlen) == 0)
+    {
+        //add a header;
+    }
+}
+```
+
+讨论未完待续...
+
+109. 如何问问题
+
+提issue的时候，最好直接说明你的实际需求，而不是说你试图解决的方案
+
+https://xyproblem.info/
+
+110. 如何优雅停止workflow创建的线程 
+
+https://github.com/sogou/workflow/issues/654
+
+如果你想提前关闭通信线程，在所有通信任务结束之后调用：
+
+```cpp
+#include "workflow/WFGlobal.h"
+void my_close_scheduler()
+{
+    WFGlobal::get_scheduler()->deinit();
+}
+```
+
+如果之后又想用通信任务的话，需要先重新初始化一下：
+
+```cpp
+int my_open_scheduler()
+{
+    const struct WFGlobalSettings *settings = WFGlobal::get_global_settings();
+    return WFGlobal::get_scheduler()->init(settings->poller_threads, settings->handler_threads);
+}
+```
+
+注意此处有一个小坑，因为程序退出会调用deinit。所以，如果你自己deinit过，程序退出之前最好重新init回来，可以调：WFGlobal::get_scheduler()->init(1, 1);
+
+111. 如果task的callback还没有调用 就需要退出程序 如何处理比较合适
+
+https://github.com/sogou/workflow/issues/654
+
+先说结论 : 我们的网络任务没有callback不能结束程序
+
+原因是：在很多情况下，你看到的网络任务并不是一个原子任务，而是可能包含多个异步过程
+
+以http为例，可能需要dns，302重定向，重试等。每个过程结束了，不会判断scheduler是否已经被deinit
+
+但如果你确定一个任务是原子任务，那么程序退出并不会有任何问题，行为有严格定义。也就是说，以下程序是绝对安全的
+
+```cpp
+void callback(WFHttpTask *task)
+{
+    // 这里打印的结果大概率是2，WFT_STATE_ABORTED。
+    printf("state = %d\n", task->get_state());
+}
+int main()
+{
+    WFHttpTask *task = WFTaskFactory::create_http_task("https://127.0.0.1/", 0, 0, callback);
+    task->start();
+    // 这里直接结束程序
+    return 1;
+}
+```
+
+所以你只要确定你的任务没有重定向，重试，使用IP或域名dns信息肯定能cache命里，那么可以安全的结束程序，也可以随时调用WFGlobal::get_scheduler()->deinit()。
+
+定时器任务也是一种原子任务，所以以下程序是安全的：
+
+```cpp
+void callback(WFTimerTask *task)
+{
+    // 这里打印的结果肯定是2，WFT_STATE_ABORTED。
+    printf("state = %d\n", task->get_state());
+}
+int main()
+{
+    WFTimerTask *task = WFTaskFactory::create_timer_task(1000000, callback);
+    task->start();
+    // 这里直接结束程序
+    return 1;
+}
+```
+
+112. TCP server 如何主动发数据给到客户端
+
+https://github.com/sogou/workflow/issues/649
+
+利用push接口
+
+
+
