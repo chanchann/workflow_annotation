@@ -13,6 +13,7 @@ static WFFacilities::WaitGroup wait_group(1);
 int main()
 {
     WFHttpServer server([](WFHttpTask *task) {
+
         task->get_resp()->append_output_body("<html>Hello World!</html>");
         series_of(task)->push_back(WFTaskFactory::create_timer_task(1000 * 1000,
                                                                     [](WFTimerTask *timer)

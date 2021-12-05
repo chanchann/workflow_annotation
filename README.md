@@ -4,6 +4,41 @@
 
 https://github.com/sogou/workflow
 
+## 更多的 demos/ examples
+
+[more examples](./demos/)
+
+## 源码解析系列
+
+### Http server 
+
+- [Http Server 解析1](./src_analysis/22_http_server_00.md)
+
+- [Http Server 解析2](./src_analysis/22_http_server_01.md)
+
+- [Http Server 解析3](./src_analysis/22_http_server_02.md)
+
+### FAQ 中的解析解析
+
+- [faq 62 : 原始的task在series没有结束的时候是不会被销毁吗?](./src_analysis/faq_62.md)
+
+### 解析杂记
+
+- [workflow杂记00 : 分析一次http性能改动](./src_analysis/other_00_http_improve.md)
+
+- [workflow杂记01 : 分析一次cache中lock的改动](./src_analysis/other_01_cache_lock.md)
+
+- [workflow杂记02 : dns的优化](./src_analysis/other_02_dns_opt.md)
+
+- [workflow杂记03 : cache size 分析](./src_analysis/other_03_cache_size.md)
+
+- [workflow杂记04 : 分析Defer deleting server task to increase performance](./src_analysis/other_04_task_defer_delete.md)
+
+
+### 其他未整理的文章
+
+- [文章集合](./src_analysis/)
+
 ## 预先声明
 
 demos 中
@@ -22,7 +57,7 @@ demos 中
 
 https://github.com/sogou/workflow/issues/246
 
-2. task都不阻塞，aio实现
+2. task都不阻塞，磁盘IO任务利用了Linux底层的aio接口，文件读取完全异步。
 
 todo : 此处需要源码细节分析
 
@@ -550,7 +585,7 @@ A : 往series里放一个counter task，series就堵住了
 
 Q : 如果在series里加入一个不会被执行的counter，那岂不是一直都不往下执行了吗?
 
-在加入下个新任务的时候，主动触发counter
+在加入下个新任务的时候，主动触发counter
 
 也是用个counter task来挂起series。要继续的时候触发counter就行了
 
@@ -616,7 +651,7 @@ todo : 写个demo
 
 https://github.com/sogou/workflow/issues/196
 
-46. 动态创建多个task，又希望这些task能被顺序的执行来避免多线程竞争
+46. 动态创建多个task，又希望这些task能被顺序的执行来避免多线程竞争
 
 https://github.com/sogou/workflow/issues/301
 

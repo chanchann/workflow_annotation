@@ -40,7 +40,19 @@ void test02()
     }
 }
 
+void test03()
+{
+    std::string url = "http://www.sogou.com";
+    // std::string url = "http://www.sogou.com/";
+    ParsedURI pu;
+    if(URIParser::parse(url, pu) < 0)
+    {
+        fprintf(stderr, "url is invalid ,return ...");
+        return;
+    }
+    fprintf(stderr, "path : %s\n", pu.path);
+}
 
 int main() {
-    test02();
+    test03();
 }
