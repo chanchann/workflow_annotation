@@ -1,0 +1,2 @@
+add_executable(33_header_pair 33_header_pair.cc)
+target_link_libraries(33_header_pair workflow)
