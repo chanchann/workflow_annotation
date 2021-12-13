@@ -160,11 +160,6 @@ int main()
 	unsigned short port = 8888;
 	signal(SIGINT, sig_handler);
 
-	struct WFGlobalSettings settings = GLOBAL_SETTINGS_DEFAULT;
-	settings.resolv_conf_path = "/etc/resolv.conf";
-	settings.hosts_path = "/etc/hosts";
-	WORKFLOW_library_init(&settings);
-
 	struct WFServerParams params = HTTP_SERVER_PARAMS_DEFAULT;
 	/* for safety, limit request size to 8MB. */
 	// 防止被恶意攻击
