@@ -1,5 +1,5 @@
 #! https://zhuanlan.zhihu.com/p/415833220
-# workflow 源码解析 04 : ThreadTask
+# workflow 源码解析 : ThreadTask
 
 项目源码 : https://github.com/sogou/workflow
 
@@ -18,12 +18,10 @@ https://github.com/chanchann/workflow_annotation/blob/main/demos/24_thrd_task/24
 ```cpp
 #include <iostream>
 #include <workflow/WFTaskFactory.h>
-#include <workflow/WFFacilities.h>
-#include <spdlog/spdlog.h>
-#include <signal.h>
 #include <errno.h>
 
 // 直接定义thread_task三要素
+// 一个典型的后端程序由三个部分组成，并且完全独立开发。即：程序=协议+算法+任务流。
 
 // 定义INPUT
 struct AddInput
@@ -52,7 +50,8 @@ void callback(AddTask *task)
 	auto *output = task->get_output();
 
 	assert(task->get_state() == WFT_STATE_SUCCESS);
-    spdlog::info("{} + {} = {}", input->x, input->y, output->res);
+
+    fprintf(stderr, "%d + %d = %d\n", input->x, input->y, output->res);
 }
 
 int main()
@@ -61,18 +60,14 @@ int main()
 	AddTask *task = AddFactory::create_thread_task("add_task",
 												add_routine,
 												callback);
-	auto *input = task->get_input();
+	AddInput *input = task->get_input();
 
 	input->x = 1;
 	input->y = 2;
 
-	WFFacilities::WaitGroup wait_group(1);
+	task->start();
 
-	Workflow::start_series_work(task, [&wait_group](const SeriesWork *) {
-		wait_group.done();
-	});
-
-	wait_group.wait();
+	getchar();
 	return 0;
 }
 ```
@@ -82,19 +77,25 @@ int main()
 首先我们创建一个thread_task 
 
 ```cpp
+using AddTask = WFThreadTask<AddInput, AddOutput>;
 using AddFactory = WFThreadTaskFactory<AddInput, AddOutput>;
 AddTask *task = AddFactory::create_thread_task("add_task",
                                             add_routine,
                                             callback);
 ```
 
-## thread_task 结构
+可以看出，其中有几个比较重要的元素
 
-观察下结构，首先看看工厂
+1. WFThreadTask
+
+2. WFThreadTaskFactory
+
+我们先看看工厂是如何产生WFThreadTask的
 
 ### WFThreadTaskFactory
 
 ```cpp
+// WFTaskFactory.h
 template<class INPUT, class OUTPUT>
 class WFThreadTaskFactory
 {
@@ -205,19 +206,9 @@ protected:
 };
 ```
 
+这里继承了ExecRequest
+
 ### ExecRequest
-
-这里继承了ExecRequest, 其中最为核心的就是三点
-
-1. 继承自SubTask， ExecSession
-
-Task最终祖先都是SubTask，毋庸置疑，计算任务还具有ExecSession的特性
-
-而网络的task则是继承自SubTask和CommSession, 而CommSession是一次req->resp的交互
-
-2. 在这一层实现了dispatch，核心是完成executor->request
-
-3. 两个重要的成员变量ExecQueue, Executor
 
 ```cpp
 /src/kernel/ExecRequest.h
@@ -230,6 +221,7 @@ public:
 	virtual void dispatch()
 	{
 		this->executor->request(this, this->queue);
+		...
 	}
 
 protected:
@@ -244,6 +236,18 @@ protected:
 };
 
 ```
+
+其中最为核心的就是三点
+
+1. 继承自SubTask， ExecSession
+
+Task最终祖先都是SubTask，毋庸置疑，计算任务还具有ExecSession的特性
+
+而网络的task则是继承自SubTask和CommSession, 而CommSession是一次req->resp的交互
+
+2. 在这一层实现了dispatch，核心是完成executor->request
+
+3. 两个重要的成员变量ExecQueue, Executor
 
 ## ExecSession
 
@@ -266,14 +270,32 @@ private:
 };
 ```
 
-再次看下我们的UML
+![Image](https://pic4.zhimg.com/80/v2-ae19782983cd73dd11071fbbedb35d2e.png)
+<!-- ![pic](https://github.com/chanchann/workflow_annotation/blob/main/src_analysis/pics/exeReuest.png?raw=true) -->
 
-<!-- ![Image](https://pic4.zhimg.com/80/v2-ae19782983cd73dd11071fbbedb35d2e.png) -->
-![pic](https://github.com/chanchann/workflow_annotation/blob/main/src_analysis/pics/exeReuest.png?raw=true)
-
-其中的handle在子类ExecRequest中实现了,
+其中的handle在子类ExecRequest中实现了
 
 而execute在__WFThreadTask实现，到这里才把纯虚函数实现完，才能实例化，所以我们new的是__WFThreadTask.
+
+```cpp
+virtual void execute()
+{
+	this->routine(&this->input, &this->output);
+}
+```
+
+这里很好理解，在不同的__WFThreadTask中，流程(routine)是不同的，但是他们完成和如何handle的是相同的
+
+```cpp
+virtual void handle(int state, int error)
+{
+	this->state = state;
+	this->error = error;
+	this->subtask_done();
+}
+```
+
+任务完成后，走下一个任务。
 
 ### 其中两个重要成员: ExecQueue, Executor
 
@@ -336,6 +358,8 @@ ExecQueue *get_exec_queue(const std::string& queue_name)
 }
 ```
 
+就是在map中，找queue_name对应的queue，如果有就返回，没有就创建并插入。
+
 ### Executor
 
 我们看看Executor的创建过程
@@ -365,6 +389,8 @@ private:
 ```
 
 Executor与__ExecManager是组合关系，是全局唯一，声明周期相同
+
+在构造的时候，compute_executor_初始化
 
 ```cpp
 int Executor::init(size_t nthreads)
@@ -400,6 +426,16 @@ private:
 
 其中最为重要的就是request 和 executor_thread_routine
 
+```cpp
+virtual void dispatch()
+{
+	this->executor->request(this, this->queue);
+	...
+}
+```
+
+ThreadTask 执行的的流程就是`executor->request`
+
 我们用个list就知道，我们的实体需要包裹起来这个list node才能串起来，首先我们看看执行任务实体
 
 ```cpp
@@ -411,7 +447,9 @@ struct ExecTaskEntry
 };
 ```
 
-其中的session就是执行execute的实体,__WFThreadTask->execute();
+其中的session就是执行execute的实体, __WFThreadTask->execute();
+
+这么一看，ExecRequest dispatch() 就是执行execute，绕了一圈，其实就是为了把执行的控制权交给线程池(executor)
 
 ```cpp
 /src/kernel/Executor.cc
@@ -440,10 +478,9 @@ int Executor::request(ExecSession *session, ExecQueue *queue)
     pthread_mutex_unlock(&queue->mutex);
     ...
 }
-
 ```
 
-主要就是把任务加入队列中等待执行, 如果下一个就是我们这个任务，则交给线程池处理。
+主要就是把任务加入队列中等待执行
 
 线程池是怎么处理运行的细节我们留到下线程池的章节，我们这里知道他把task交给线程池处理就可。
 
@@ -472,144 +509,8 @@ void Executor::executor_thread_routine(void *context)
 
 	pthread_mutex_unlock(&queue->mutex);
 
+	// 执行此任务
 	session->execute();
 	session->handle(ES_STATE_FINISHED, 0);
 }
 ```
-
-
-1. 执行此任务
-
-```cpp
-session->execute();
-session->handle(ES_STATE_FINISHED, 0);
-```
-
-todo : thrdpool_schedule 这里需要再整理一番
-
-## 日志流程
-
-```
-T 21-10-03 23:41:43.907341 [tid : 10039] <WFTaskFactory.inl:605> : create_thread_task
-T 21-10-03 23:41:43.909882 [tid : 10039] <Executor.h:82> : Executor creator
-T 21-10-03 23:41:43.912471 [tid : 10039] <WFGlobal.cc:537> : __ExecManager creator
-T 21-10-03 23:41:43.913831 [tid : 10039] <Executor.cc:66> : Executor::init
-T 21-10-03 23:41:43.914381 [tid : 10039] <Executor.cc:72> : Calculate thread pool create
-T 21-10-03 23:41:43.914764 [tid : 10039] <Executor.h:39> : ExecQueue creator
-T 21-10-03 23:41:43.914952 [tid : 10039] <Executor.cc:42> : ExecQueue::init
-T 21-10-03 23:41:43.915091 [tid : 10039] <Executor.h:61> : ExecSession creator
-T 21-10-03 23:41:43.915205 [tid : 10039] <ExecRequest.h:31> : ExecRequest creator
-T 21-10-03 23:41:43.915294 [tid : 10039] <WFTask.h:119> : WFThreadTask constructor
-T 21-10-03 23:41:43.915473 [tid : 10039] <WFTaskFactory.inl:595> : __WFThreadTask constructor
-// 之前可以看出构造的流程
-
-T 21-10-03 23:41:43.916085 [tid : 10039] <ExecRequest.h:42> : ExecRequest dispatch
-T 21-10-03 23:41:43.916254 [tid : 10039] <Executor.cc:144> : Executor::request
-
-// 这两句才是调用的核心
-
-T 21-10-03 23:41:43.916388 [tid : 10039] <Executor.cc:158> : add task to task_list
-T 21-10-03 23:41:43.916513 [tid : 10039] <thrdpool.c:293> : thrdpool_schedule
-T 21-10-03 23:41:43.916679 [tid : 10039] <thrdpool.c:267> : __thrdpool_schedule
-T 21-10-03 23:41:43.916811 [tid : 10039] <thrdpool.c:274> : add entry list to pool task Queue
-T 21-10-03 23:41:43.917034 [tid : 10039] <WFGlobal.cc:387> : __CommManager creator
-T 21-10-03 23:41:43.917166 [tid : 10039] <CommScheduler.h:118> : CommScheduler::init
-T 21-10-03 23:41:43.917466 [tid : 10039] <Communicator.cc:1294> : create handler thread pool
-T 21-10-03 23:41:43.919664 [tid : 10039] <thrdpool.c:293> : thrdpool_schedule
-T 21-10-03 23:41:43.920183 [tid : 10039] <thrdpool.c:267> : __thrdpool_schedule
-T 21-10-03 23:41:43.920285 [tid : 10039] <thrdpool.c:274> : add entry list to pool task Queue
-T 21-10-03 23:41:43.920300 [tid : 10039] <thrdpool.c:293> : thrdpool_schedule
-T 21-10-03 23:41:43.920311 [tid : 10039] <thrdpool.c:267> : __thrdpool_schedule
-T 21-10-03 23:41:43.920350 [tid : 10039] <thrdpool.c:274> : add entry list to pool task Queue
-T 21-10-03 23:41:43.920362 [tid : 10039] <thrdpool.c:293> : thrdpool_schedule
-T 21-10-03 23:41:43.920372 [tid : 10039] <thrdpool.c:267> : __thrdpool_schedule
-T 21-10-03 23:41:43.920489 [tid : 10039] <thrdpool.c:274> : add entry list to pool task Queue
-T 21-10-03 23:41:43.920501 [tid : 10039] <thrdpool.c:293> : thrdpool_schedule
-T 21-10-03 23:41:43.920511 [tid : 10039] <thrdpool.c:267> : __thrdpool_schedule
-T 21-10-03 23:41:43.920554 [tid : 10039] <thrdpool.c:274> : add entry list to pool task Queue
-T 21-10-03 23:41:43.920573 [tid : 10039] <thrdpool.c:293> : thrdpool_schedule
-T 21-10-03 23:41:43.920982 [tid : 10039] <thrdpool.c:267> : __thrdpool_schedule
-T 21-10-03 23:41:43.921003 [tid : 10039] <thrdpool.c:274> : add entry list to pool task Queue
-T 21-10-03 23:41:43.921035 [tid : 10039] <thrdpool.c:293> : thrdpool_schedule
-T 21-10-03 23:41:43.921055 [tid : 10039] <thrdpool.c:267> : __thrdpool_schedule
-T 21-10-03 23:41:43.921067 [tid : 10039] <thrdpool.c:274> : add entry list to pool task Queue
-T 21-10-03 23:41:43.921087 [tid : 10039] <thrdpool.c:293> : thrdpool_schedule
-T 21-10-03 23:41:43.921108 [tid : 10039] <thrdpool.c:267> : __thrdpool_schedule
-T 21-10-03 23:41:43.921125 [tid : 10039] <thrdpool.c:274> : add entry list to pool task Queue
-T 21-10-03 23:41:43.921223 [tid : 10039] <thrdpool.c:293> : thrdpool_schedule
-T 21-10-03 23:41:43.921245 [tid : 10039] <thrdpool.c:267> : __thrdpool_schedule
-T 21-10-03 23:41:43.921261 [tid : 10039] <thrdpool.c:274> : add entry list to pool task Queue
-T 21-10-03 23:41:43.921273 [tid : 10039] <thrdpool.c:293> : thrdpool_schedule
-T 21-10-03 23:41:43.921286 [tid : 10039] <thrdpool.c:267> : __thrdpool_schedule
-T 21-10-03 23:41:43.921301 [tid : 10039] <thrdpool.c:274> : add entry list to pool task Queue
-T 21-10-03 23:41:43.921313 [tid : 10039] <thrdpool.c:293> : thrdpool_schedule
-T 21-10-03 23:41:43.921330 [tid : 10039] <thrdpool.c:267> : __thrdpool_schedule
-T 21-10-03 23:41:43.921342 [tid : 10039] <thrdpool.c:274> : add entry list to pool task Queue
-T 21-10-03 23:41:43.921432 [tid : 10039] <thrdpool.c:293> : thrdpool_schedule
-T 21-10-03 23:41:43.921445 [tid : 10039] <thrdpool.c:267> : __thrdpool_schedule
-T 21-10-03 23:41:43.921461 [tid : 10039] <thrdpool.c:274> : add entry list to pool task Queue
-T 21-10-03 23:41:43.921672 [tid : 10039] <thrdpool.c:293> : thrdpool_schedule
-T 21-10-03 23:41:43.921689 [tid : 10039] <thrdpool.c:267> : __thrdpool_schedule
-T 21-10-03 23:41:43.921702 [tid : 10039] <thrdpool.c:274> : add entry list to pool task Queue
-T 21-10-03 23:41:43.921719 [tid : 10039] <thrdpool.c:293> : thrdpool_schedule
-T 21-10-03 23:41:43.921731 [tid : 10039] <thrdpool.c:267> : __thrdpool_schedule
-T 21-10-03 23:41:43.921817 [tid : 10039] <thrdpool.c:274> : add entry list to pool task Queue
-T 21-10-03 23:41:43.921848 [tid : 10039] <thrdpool.c:293> : thrdpool_schedule
-T 21-10-03 23:41:43.921868 [tid : 10039] <thrdpool.c:267> : __thrdpool_schedule
-T 21-10-03 23:41:43.921884 [tid : 10039] <thrdpool.c:274> : add entry list to pool task Queue
-T 21-10-03 23:41:43.921912 [tid : 10039] <thrdpool.c:293> : thrdpool_schedule
-T 21-10-03 23:41:43.921933 [tid : 10039] <thrdpool.c:267> : __thrdpool_schedule
-T 21-10-03 23:41:43.922039 [tid : 10039] <thrdpool.c:274> : add entry list to pool task Queue
-T 21-10-03 23:41:43.922056 [tid : 10039] <thrdpool.c:293> : thrdpool_schedule
-T 21-10-03 23:41:43.922083 [tid : 10039] <thrdpool.c:267> : __thrdpool_schedule
-T 21-10-03 23:41:43.922103 [tid : 10039] <thrdpool.c:274> : add entry list to pool task Queue
-T 21-10-03 23:41:43.922123 [tid : 10039] <thrdpool.c:293> : thrdpool_schedule
-T 21-10-03 23:41:43.922135 [tid : 10039] <thrdpool.c:267> : __thrdpool_schedule
-T 21-10-03 23:41:43.922433 [tid : 10039] <thrdpool.c:274> : add entry list to pool task Queue
-T 21-10-03 23:41:43.922540 [tid : 10039] <thrdpool.c:293> : thrdpool_schedule
-T 21-10-03 23:41:43.922564 [tid : 10039] <thrdpool.c:267> : __thrdpool_schedule
-T 21-10-03 23:41:43.922584 [tid : 10039] <thrdpool.c:274> : add entry list to pool task Queue
-T 21-10-03 23:41:43.922596 [tid : 10039] <thrdpool.c:293> : thrdpool_schedule
-T 21-10-03 23:41:43.922608 [tid : 10039] <thrdpool.c:267> : __thrdpool_schedule
-T 21-10-03 23:41:43.922619 [tid : 10039] <thrdpool.c:274> : add entry list to pool task Queue
-T 21-10-03 23:41:43.922636 [tid : 10039] <thrdpool.c:293> : thrdpool_schedule
-T 21-10-03 23:41:43.922647 [tid : 10039] <thrdpool.c:267> : __thrdpool_schedule
-T 21-10-03 23:41:43.922737 [tid : 10039] <thrdpool.c:274> : add entry list to pool task Queue
-T 21-10-03 23:41:43.921017 [tid : 10045] <thrdpool.c:54> : __thrdpool_routine
-T 21-10-03 23:41:43.922065 [tid : 10060] <thrdpool.c:54> : __thrdpool_routine
-T 21-10-03 23:41:43.921708 [tid : 10055] <thrdpool.c:54> : __thrdpool_routine
-T 21-10-03 23:41:43.921045 [tid : 10046] <thrdpool.c:54> : __thrdpool_routine
-T 21-10-03 23:41:43.922113 [tid : 10061] <thrdpool.c:54> : __thrdpool_routine
-T 21-10-03 23:41:43.921420 [tid : 10052] <thrdpool.c:54> : __thrdpool_routine
-T 21-10-03 23:41:43.921738 [tid : 10056] <thrdpool.c:54> : __thrdpool_routine
-T 21-10-03 23:41:43.921234 [tid : 10048] <thrdpool.c:54> : __thrdpool_routine
-T 21-10-03 23:41:43.921830 [tid : 10057] <thrdpool.c:54> : __thrdpool_routine
-T 21-10-03 23:41:43.921292 [tid : 10050] <thrdpool.c:54> : __thrdpool_routine
-T 21-10-03 23:41:43.922574 [tid : 10062] <thrdpool.c:54> : __thrdpool_routine
-T 21-10-03 23:41:43.921452 [tid : 10053] <thrdpool.c:54> : __thrdpool_routine
-T 21-10-03 23:41:43.921115 [tid : 10047] <thrdpool.c:54> : __thrdpool_routine
-T 21-10-03 23:41:43.921892 [tid : 10058] <thrdpool.c:54> : __thrdpool_routine
-T 21-10-03 23:41:43.921660 [tid : 10054] <thrdpool.c:54> : __thrdpool_routine
-T 21-10-03 23:41:43.922628 [tid : 10063] <thrdpool.c:54> : __thrdpool_routine
-T 21-10-03 23:41:43.921928 [tid : 10059] <thrdpool.c:54> : __thrdpool_routine
-T 21-10-03 23:41:43.921257 [tid : 10049] <thrdpool.c:54> : __thrdpool_routine
-T 21-10-03 23:41:43.922731 [tid : 10064] <thrdpool.c:54> : __thrdpool_routine
-T 21-10-03 23:41:43.921323 [tid : 10051] <thrdpool.c:54> : __thrdpool_routine
-T 21-10-03 23:41:43.923690 [tid : 10040] <thrdpool.c:54> : __thrdpool_routine
-
-// todo :
-// 1. 为什么会反复thrdpool_schedule， __thrdpool_schedule
-// 2. <Communicator.cc:1294> : create handler thread pool 为什么这里需要被创建
-// 3. __thrdpool_routine 是哪一个线程池的
-
-T 21-10-03 23:41:43.923840 [tid : 10040] <Executor.cc:90> : Executor::executor_thread_routine
-T 21-10-03 23:41:43.923991 [tid : 10040] <WFTaskFactory.inl:581> : __WFThreadTask execute routine
-
-// 最终拿出来的任务session->execute();  就是__WFThreadTask->excute() 就是 routine
-
-T 21-10-03 23:41:43.924009 [tid : 10040] <24_thrd_task_01.cc:28> : add_routine
-T 21-10-03 23:41:43.924026 [tid : 10040] <ExecRequest.h:62> : ExecRequest handle
-I 21-10-03 23:41:43.924039 [tid : 10040] <WFTask.h:98> : WFThreadTask done
-I 21-10-03 23:41:43.924115 [tid : 10040] <24_thrd_task_01.cc:40> : 1 + 2 = 3
-```
-
