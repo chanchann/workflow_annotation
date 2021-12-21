@@ -95,7 +95,7 @@ AddTask *task = AddFactory::create_thread_task("add_task",
 ### WFThreadTaskFactory
 
 ```cpp
-// WFTaskFactory.h
+// src/factory/WFTaskFactory.h
 template<class INPUT, class OUTPUT>
 class WFThreadTaskFactory
 {
@@ -116,6 +116,7 @@ public:
 INPUT和OUTPUT是两个模板参数，可以是任何类型。routine表示从INPUT到OUTPUT的过程
 
 ```cpp
+// src/factory/WFTaskFactory.inl
 template<class INPUT, class OUTPUT>
 WFThreadTask<INPUT, OUTPUT> *
 WFThreadTaskFactory<INPUT, OUTPUT>::create_thread_task(const std::string& queue_name,
@@ -129,17 +130,18 @@ WFThreadTaskFactory<INPUT, OUTPUT>::create_thread_task(const std::string& queue_
 }
 ```
 
-这里可以看到，其实就是 new 一个 __WFThreadTask
+这里可以看到，其实就是 new 一个 `__WFThreadTask`
 
-在此处，创建了ExecQueue 和 Executor，而且由于`WFGlobal::`, 所以由单例`__ExecManager`来管控
+在此处，创建了 `ExecQueue` 和 `Executor`，而且由于`WFGlobal::`, 所以由单例`__ExecManager`来管控
 
 下面会详细讲述
 
 ### __WFThreadTask
 
-其中最为核心的就在两点，一个是继承自WFThreadTask，一个就是最为核心的成员变量routine。
+其中最为核心的就在两点，一个是继承自 `WFThreadTask`，一个就是最为核心的成员变量`routine`。
 
 ```cpp
+// src/factory/WFTaskFactory.inl
 template<class INPUT, class OUTPUT>
 class __WFThreadTask : public WFThreadTask<INPUT, OUTPUT>
 {
@@ -163,11 +165,12 @@ public:
 };
 ```
 
+而他所继承的 `WFThreadTask` 就很中规中矩了，这里的继承相当于是给他加上了 `routine` 这个特性功能，并且把这一层给隐藏起来
+
 ### WFThreadTask
 
-而他所继承的WFThreadTask就很中规中矩了，这里的继承相当于是给他加上了routine这个特性功能，并且把这一层给隐藏起来
-
 ```cpp
+// src/factory/WFTask.h
 template<class INPUT, class OUTPUT>
 class WFThreadTask : public ExecRequest
 {
@@ -206,12 +209,12 @@ protected:
 };
 ```
 
-这里继承了ExecRequest
+`WFThreadTask` 继承了 `ExecRequest`
 
 ### ExecRequest
 
 ```cpp
-/src/kernel/ExecRequest.h
+// src/kernel/ExecRequest.h
 class ExecRequest : public SubTask, public ExecSession
 {
 public:
@@ -273,9 +276,9 @@ private:
 ![Image](https://pic4.zhimg.com/80/v2-ae19782983cd73dd11071fbbedb35d2e.png)
 <!-- ![pic](https://github.com/chanchann/workflow_annotation/blob/main/src_analysis/pics/exeReuest.png?raw=true) -->
 
-其中的handle在子类ExecRequest中实现了
+其中的 `handle` 在子类 `ExecRequest` 中实现了
 
-而execute在__WFThreadTask实现，到这里才把纯虚函数实现完，才能实例化，所以我们new的是__WFThreadTask.
+而 `execute` 在 `__WFThreadTask` 实现，到这里才把纯虚函数实现完，才能实例化，所以我们new的是 `__WFThreadTask`.
 
 ```cpp
 virtual void execute()
@@ -284,7 +287,7 @@ virtual void execute()
 }
 ```
 
-这里很好理解，在不同的__WFThreadTask中，流程(routine)是不同的，但是他们完成和如何handle的是相同的
+这里很好理解，在不同的 `__WFThreadTask` 中，流程(routine)是不同的，但是他们完成和如何handle的是相同的
 
 ```cpp
 virtual void handle(int state, int error)
@@ -299,7 +302,7 @@ virtual void handle(int state, int error)
 
 ### 其中两个重要成员: ExecQueue, Executor
 
-两者都在创建__WFThreadTask的时候创建。
+两者都在创建 `__WFThreadTask` 的时候创建。
 
 ```cpp
 template<class INPUT, class OUTPUT>
@@ -388,9 +391,9 @@ private:
 
 ```
 
-Executor与__ExecManager是组合关系，是全局唯一，声明周期相同
+`Executor` 与 `__ExecManager` 是组合关系，是全局唯一，声明周期相同
 
-在构造的时候，compute_executor_初始化
+在构造的时候，`compute_executor` 初始化
 
 ```cpp
 int Executor::init(size_t nthreads)
@@ -399,8 +402,7 @@ int Executor::init(size_t nthreads)
 	...
 }
 ```
-
-init知道Executor就是个计算线程池
+从 `init` 知道 `Executor` 带有一个线程池
 
 我们再看看Executor的结构
 
@@ -422,9 +424,7 @@ private:
 };
 ```
 
-而Executor看成员，也知道是个线程池。
-
-其中最为重要的就是request 和 executor_thread_routine
+其中最为重要的就是 `request` 和 `executor_thread_routine`
 
 ```cpp
 virtual void dispatch()
@@ -434,7 +434,7 @@ virtual void dispatch()
 }
 ```
 
-ThreadTask 执行的的流程就是`executor->request`
+ThreadTask 执行的的流程就是 `executor->request`
 
 我们用个list就知道，我们的实体需要包裹起来这个list node才能串起来，首先我们看看执行任务实体
 
@@ -447,13 +447,12 @@ struct ExecTaskEntry
 };
 ```
 
-其中的session就是执行execute的实体, __WFThreadTask->execute();
+其中的 `session` 就是执行 `execute` 的实体, `__WFThreadTask->execute()`;
 
-这么一看，ExecRequest dispatch() 就是执行execute，绕了一圈，其实就是为了把执行的控制权交给线程池(executor)
+`ExecRequest dispatch()` 根本目的肯定是执行 `execute`，绕了一圈，其实就是为了把执行的控制权交给线程池
 
 ```cpp
-/src/kernel/Executor.cc
-
+// src/kernel/Executor.cc
 int Executor::request(ExecSession *session, ExecQueue *queue)
 {
     ... 
@@ -482,14 +481,16 @@ int Executor::request(ExecSession *session, ExecQueue *queue)
 }
 ```
 
-主要就是把任务加入队列中等待执行, ！！！注意，我们这里的task并不是起执行`execute`, `handle`, 而是 `Executor::executor_thread_routine`, 那么为什么这么做呢，请往下看。
+主要就是把任务加入queue中等待执行,
 
-线程池具体是怎么处理运行的细节我们留到下线程池的章节，我们这里知道他把task交给线程池处理就可。
+！！！注意，我们这里的task并不是起执行`execute`, `handle`, 而是 `Executor::executor_thread_routine`, 这其实是一个消费动作的回调，那么为什么这么做呢，请往下看。
+
+线程池具体是怎么处理运行的细节我们留到下线程池的章节，我们这里知道他把task交给生产者待消费。
 
 我们加入的task是`executor_thread_routine`
 
 ```cpp
-/src/kernel/Executor.cc
+// src/kernel/Executor.cc
 void Executor::executor_thread_routine(void *context)
 {
 	...
@@ -539,7 +540,7 @@ struct __thrdpool_task_entry
 };
 ```
 
-我们这个就是线程池的task entry.
+我们这个就是线程池的task entry, callback是 `executor_thread_routine`
 
 然后调用`__thrdpool_schedule`
 
@@ -617,7 +618,6 @@ struct thrdpool_task task = {
 3. 每次取到了一个再注册下一个，只需要malloc一次 `struct __thrdpool_task_entry`
 
 4. 真正的任务都是挂在queue的list中，每次操作也是在queue的list中，而不会交给线程池吗，不用多个地方保存或者转移。
-
 
 ## 总结
 
