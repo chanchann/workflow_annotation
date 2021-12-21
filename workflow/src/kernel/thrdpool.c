@@ -257,7 +257,7 @@ thrdpool_t *thrdpool_create(size_t nthreads, size_t stacksize)
  * @brief  这里的线程池调度，其实就是生产者，加入任务到list里，通知消费者来消费
  * @note   
  * @param  *task: 
- * @param  *buf: 这里就是struct __thrdpool_task_entry，难道又是为了简便偷懒协程void *buf？
+ * @param  *buf: 这里就是struct __thrdpool_task_entry，为了简便写成void *buf
  * @param  *pool: 
  * @retval None
  */

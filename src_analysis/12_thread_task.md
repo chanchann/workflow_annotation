@@ -466,6 +466,8 @@ int Executor::request(ExecSession *session, ExecQueue *queue)
     pthread_mutex_lock(&queue->mutex);
     list_add_tail(&entry->list, &queue->task_list); 
 
+	// 如果这是第一个任务，需要去thrdpool_schedule(第一次调用需要malloc buf(entry(struct __thrdpool_task_entry)))
+	// 后面就复用entry(struct __thrdpool_task_entry)了
     if (queue->task_list.next == &entry->list)
     {
         struct thrdpool_task task = {
@@ -480,11 +482,11 @@ int Executor::request(ExecSession *session, ExecQueue *queue)
 }
 ```
 
-主要就是把任务加入队列中等待执行
+主要就是把任务加入队列中等待执行, ！！！注意，我们这里的task并不是起执行`execute`, `handle`, 而是 `Executor::executor_thread_routine`, 那么为什么这么做呢，请往下看。
 
-线程池是怎么处理运行的细节我们留到下线程池的章节，我们这里知道他把task交给线程池处理就可。
+线程池具体是怎么处理运行的细节我们留到下线程池的章节，我们这里知道他把task交给线程池处理就可。
 
-我们在线程池中进行的回调是
+我们加入的task是`executor_thread_routine`
 
 ```cpp
 /src/kernel/Executor.cc
@@ -514,3 +516,149 @@ void Executor::executor_thread_routine(void *context)
 	session->handle(ES_STATE_FINISHED, 0);
 }
 ```
+
+与上面的`request`相对比，这里有个细节，`if (queue->task_list.next == &entry->list)`, 当这个是第一次加入的时候，我们调用的是 `thrdpool_schedule`
+
+```cpp
+int thrdpool_schedule(const struct thrdpool_task *task, thrdpool_t *pool)
+{
+	void *buf = malloc(sizeof (struct __thrdpool_task_entry));
+	...
+	__thrdpool_schedule(task, buf, pool);
+	...
+}
+```
+
+我们是malloc一个`struct __thrdpool_task_entry`
+
+```cpp
+struct __thrdpool_task_entry
+{
+	struct list_head list;
+	struct thrdpool_task task;
+};
+```
+
+我们这个就是线程池的task entry.
+
+然后调用`__thrdpool_schedule`
+
+而我们看`executor_thread_routine`中，当queue不为空的时候, 直接调用 `__thrdpool_schedule`
+
+```cpp
+void Executor::executor_thread_routine(void *context)
+{
+	...
+	if (!list_empty(&queue->task_list))
+	{
+		struct thrdpool_task task = {
+			.routine	=	Executor::executor_thread_routine,
+			.context	=	queue
+		};
+		__thrdpool_schedule(&task, entry, entry->thrdpool);
+	}
+	...
+}
+```
+
+先说这里的 `__thrdpool_schedule`，其实就是生产者，加入任务到list里，通知消费者来消费
+
+```cpp
+inline void __thrdpool_schedule(const struct thrdpool_task *task, void *buf,
+								thrdpool_t *pool)
+{
+	struct __thrdpool_task_entry *entry = (struct __thrdpool_task_entry *)buf;
+
+	entry->task = *task;
+	pthread_mutex_lock(&pool->mutex);
+	list_add_tail(&entry->list, &pool->task_queue);
+	pthread_cond_signal(&pool->cond);
+	pthread_mutex_unlock(&pool->mutex);
+}
+```
+
+所以`thrdpool_schedule` 和 `__thrdpool_schedule` 的差别就是一次 malloc
+
+第一次加入queue，malloc了`struct __thrdpool_task_entry` 之后，我们之后就都复用这一个，避免了多次malloc。
+
+### 再次分析流程此处的request详细流程
+
+我们第一次`request`
+
+```cpp
+list_add_tail(&entry->list, &queue->task_list);
+```
+
+我们把`ExecTaskEntry` 加入到 queue中，如果是队列中第一个任务的话，
+
+我们打包task成
+
+```cpp
+struct thrdpool_task task = {
+	.routine	=	Executor::executor_thread_routine,
+	.context	=	queue
+};
+```
+
+去`thrdpool_schedule`, 分配了一个`__thrdpool_task_entry`, 交给生产者.
+
+当消费者取到的时候，执行之前打包的这个task, 执行 `executor_thread_routine`
+
+我们取出`ExecTaskEntry`, 执行我们需要的计算流程`execute`, `handle`, 其中如果队列不为空，那么继续包装task，等消费者去取出下一个queue中的`ExecTaskEntry` 去执行
+
+所以，我们发现了，我们在这里queue排队，线程池来取queue中的任务，取了一个再注册下一个进去丢给生产者。而不是我们以往的线程池写法，线程池中有一个队列，我们把任务都丢给线程池的队列之中，一个while循环不断pop。
+
+这样的好处
+
+1. 解耦。我们的`executor`就是生产出计算型的任务，等着线程池来消费。不用把具体的任务交给线程池，而是把消费动作交给线程池，更加灵活。
+
+2. 多个队列，这种写法可以有多个队列注册task交给线程池来消费。
+
+3. 每次取到了一个再注册下一个，只需要malloc一次 `struct __thrdpool_task_entry`
+
+4. 真正的任务都是挂在queue的list中，每次操作也是在queue的list中，而不会交给线程池吗，不用多个地方保存或者转移。
+
+
+## 总结
+
+1. 工厂
+
+核心要点
+
+new __WFThreadTask<INPUT, OUTPUT>
+
+WFGlobal::get_exec_queue(queue_name)
+
+WFGlobal::get_compute_executor()
+
+2. __WFThreadTask 
+
+核心要点 
+
+继承自 `WFThreadTask<INPUT, OUTPUT>`, 中规中矩的task
+
+增加了 `routine`, 核心api `execute`
+
+3. __WFThreadTask 继承自 ExecRequest
+
+所有的task核心在于如何 `dipatch`, 在 `ExecRequest` 这一层实现
+
+`this->executor->request(this, this->queue)`
+
+4. ExecRequest 继承自SubTask,ExecSession
+
+既是task，又有计算属性，其中
+
+`ExecSession` 有 `execute`, `handle` 两个纯虚函数
+
+`handle` 在 `ExecRequest` 实现
+
+`execute` 在 `__WFThreadTask`实现
+
+(__WFThreadTask 才能实例化
+
+5. executor->request
+
+具体在于上面 `request` 分析
+
+
