@@ -1,5 +1,5 @@
 #! https://zhuanlan.zhihu.com/p/416865725
-# workflow 源码解析 07 : TimerTask
+# workflow 源码解析 : TimerTask
 
 项目源码 : https://github.com/sogou/workflow
 
@@ -10,6 +10,11 @@
 ## 先写一个小demo
 
 ```cpp
+#include <chrono>
+#include <workflow/Workflow.h>
+#include <workflow/WFTaskFactory.h>
+#include <workflow/WFFacilities.h>
+
 int main()
 {
     WFFacilities::WaitGroup wait_group(1);
@@ -19,9 +24,10 @@ int main()
     {
         auto end = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double, std::milli> tm = end - start;
-        spdlog::info("time consume : {}", tm.count());
+        fprintf(stderr, "time consume : %f ms\n", tm.count());
         wait_group.done();
     });
+
     task->start();
     wait_group.wait();
     return 0;
@@ -29,7 +35,6 @@ int main()
 ```
 
 ## 创建流程
-
 
 ### create_timer_task
 
@@ -44,11 +49,19 @@ WFTimerTask *WFTaskFactory::create_timer_task(unsigned int microseconds,
 }
 ```
 
+此处有两个核心要点
+
+1. `__WFTimerTask`
+
+2. WFGlobal::get_scheduler()
+
 ### __WFTimerTask
 
-实际上是new了一个__WFTimerTask
+对比下，`__WFThreadTask`, `__WFGoTask`, 我们已经找到了一点task继承的规律
 
-并且在构造的时候，`WFGlobal::get_scheduler()` 创建了 CommScheduler
+这里的 `__WFTimerTask`， 最为核心的是就是时间间隔成员，还有duration这个核心函数
+
+基于之前的经验，我盲猜，`duration`, `handle`会是两个纯虚函数让我们实现。其父类必然也是个中规中矩的task
 
 ```cpp
 class __WFTimerTask : public WFTimerTask
@@ -77,10 +90,9 @@ public:
 ```
 ### WFTimerTask
 
-继承的WFTimerTask 是个中规中矩的一个task
+果然，继承的WFTimerTask 是个中规中矩的一个task
 
 ```cpp
-
 class WFTimerTask : public SleepRequest
 {
 public:
@@ -108,15 +120,43 @@ public:
 
 ```
 
-### 总结结构
+## 总结结构
 
-再回看下threadTask的结构，就大概知道wf的继承架构。
+对比回看下 `ThreadTask` 的结构，就大概知道wf的继承架构
 
-一个中规中矩的task为轴，向下__xxxTask添加独特功能，向上继承自kernel中相关的xxxRequest, 而xxxRequest又满足subTask又满足相关xxxSession性质从而继承。
+### 1. 一个中规中矩的 `xxxTask` 为轴
 
-xxxSession中有两个纯虚函数，一个handle让xxxRequest来实现，一个要一直到__WFxxxTask才实现，这样__WFxxxxTask才实现完所有的纯虚函数，才能实例化，所有的接口都是session *， 从而满足多态.
+### 2. 向下 `__xxxTask` 添加独特功能
 
-核心入口就是 xxxRequest 要实现dispatch 去的调用 scheduler(threadTask 是executor) 完成相关功能。
+比如 `__ThreadTask` 添加 `routine`，增加 `execute`.
+
+`__GoTask` 添加 `callback(go)`, 增加 `execute`
+
+`__WFTimerTask` 添加 `seconds`, `nanoseconds`, 增加 `duration`.
+
+### 3. 向上继承自kernel中相关的 `xxxRequest`
+
+而 `xxxRequest` 又满足 `subTask` 又满足相关 `xxxSession`性质从而继承。
+
+其中继承自 `subTask` 十分自然，因为都是task，`subTask` 是所有task的祖先，而 `xxxSession` 代表task相关的属性
+
+比如 `__ThreadTask` 和 `__GoTask` 都是计算型任务，计算任务还具有 `ExecSession` 的特性
+
+`__WFTimerTask` 是休眠任务，具有 `SleepSession` 的特性，这个我们下面分析
+
+而网络相关的task则是具有 `CommSession` 的特性, CommSession是一次req->resp的交互
+
+### 4. `xxxSession` 中有两个纯虚函数
+
+一个 `handle` 让 `xxxRequest` 来实现，另一个要一直到 `__xxxTask`才实现，这样`__xxxxTask`才实现完所有的纯虚函数，才能实例化，所有的接口都是`session *`， 从而满足多态
+
+这个对比来看，其中 `handle` 都一样，主要是不同任务特有的接口，比如，计算任务是 `execute`, 休眠任务是 `duration`, 网络任务则是 `message_in`, `message_out` 
+
+(网络任务更为复杂，细节我们可以等分析http看，不过大抵也是如此)
+
+### 5. 核心入口就是 `xxxRequest` 要实现 `dispatch` 
+
+去的调用 scheduler(threadTask 是executor) 完成相关功能
 
 ### SleepRequest
 
@@ -124,42 +164,28 @@ xxxSession中有两个纯虚函数，一个handle让xxxRequest来实现，一个
 class SleepRequest : public SubTask, public SleepSession
 {
 public:
-	SleepRequest(CommScheduler *scheduler)
-	{
-		this->scheduler = scheduler;
-	}
+	SleepRequest(CommScheduler *scheduler);
 
-public:
 	virtual void dispatch()
 	{
-		if (this->scheduler->sleep(this) < 0)
-		{
-			this->state = SS_STATE_ERROR;
-			this->error = errno;
-			this->subtask_done();
-		}
+		...
+		this->scheduler->sleep(this);
+		...
 	}
 
 protected:
 	int state;
 	int error;
-
-protected:
 	CommScheduler *scheduler;
-
-protected:
-	virtual void handle(int state, int error)
-	{
-		this->state = state;
-		this->error = error;
-		this->subtask_done();
-	}
+	virtual void handle(int state, int error);
 };
 ```
 
+我们根据之前的总结，`SleepRequest` 核心入口 `dispatch`, 整个task的核心就在此 `scheduler->sleep`
+
 ### SleepSession
 
-我们窥探下SleepSession，就是两个纯虚函数给我们去实现。
+我们窥探下SleepSession，就是这两个纯虚函数给我们去实现。
 
 ```cpp
 class SleepSession
@@ -183,7 +209,7 @@ public:
 	{
 		return this->comm.init(poller_threads, handler_threads);
 	}
-	/* for sleepers. */
+
 	int sleep(SleepSession *session)
 	{
 		return this->comm.sleep(session);
@@ -211,7 +237,11 @@ int Communicator::sleep(SleepSession *session)
 }
 ```
 
-然后就是向poller上添加定时器
+回到了我们所实现的接口`duration`, `session->duration`, 而且根据我们总结的，以`session`形式，利用多态。
+
+而我们的 `duration` 只是设置时间数值，我们这里的休眠操作是异步的，肯定是要往epoll上面挂
+
+所以我们这里就是向poller上添加定时器
 
 ```cpp
 static inline int mpoller_add_timer(const struct timespec *value, void *context,
@@ -226,76 +256,34 @@ static inline int mpoller_add_timer(const struct timespec *value, void *context,
 就是round robin 随机找个poller线程添加上
 
 ```cpp
-
 int poller_add_timer(const struct timespec *value, void *context,
 					 poller_t *poller)
 {
 	struct __poller_node *node;
 
 	node = (struct __poller_node *)malloc(sizeof (struct __poller_node));
-	if (node)
+	...
+	memset(&node->data, 0, sizeof (struct poller_data));
+	node->data.operation = PD_OP_TIMER;
+	node->data.fd = -1;
+	node->data.context = context;   // 是session
+	node->in_rbtree = 0;
+	node->removed = 0;
+	node->res = NULL;
+
+	clock_gettime(CLOCK_MONOTONIC, &node->timeout);
+	node->timeout.tv_sec += value->tv_sec;
+	node->timeout.tv_nsec += value->tv_nsec;
+	if (node->timeout.tv_nsec >= 1000000000)
 	{
-		memset(&node->data, 0, sizeof (struct poller_data));
-		node->data.operation = PD_OP_TIMER;
-		node->data.fd = -1;
-		node->data.context = context;
-		node->in_rbtree = 0;
-		node->removed = 0;
-		node->res = NULL;
-
-		clock_gettime(CLOCK_MONOTONIC, &node->timeout);
-		node->timeout.tv_sec += value->tv_sec;
-		node->timeout.tv_nsec += value->tv_nsec;
-		if (node->timeout.tv_nsec >= 1000000000)
-		{
-			node->timeout.tv_nsec -= 1000000000;
-			node->timeout.tv_sec++;
-		}
-
-		pthread_mutex_lock(&poller->mutex);
-		__poller_insert_node(node, poller);
-		pthread_mutex_unlock(&poller->mutex);
-		return 0;
+		node->timeout.tv_nsec -= 1000000000;
+		node->timeout.tv_sec++;
 	}
 
-	return -1;
-}
-```
-
-```cpp
-int poller_add_timer(const struct timespec *value, void *context,
-					 poller_t *poller)
-{
-	LOG_TRACE("poller_add_timer");
-	struct __poller_node *node;
-
-	node = (struct __poller_node *)malloc(sizeof (struct __poller_node));
-	if (node)
-	{
-		memset(&node->data, 0, sizeof (struct poller_data));
-		node->data.operation = PD_OP_TIMER;
-		node->data.fd = -1;
-		node->data.context = context;
-		node->in_rbtree = 0;
-		node->removed = 0;
-		node->res = NULL;
-
-		clock_gettime(CLOCK_MONOTONIC, &node->timeout);
-		node->timeout.tv_sec += value->tv_sec;
-		node->timeout.tv_nsec += value->tv_nsec;
-		if (node->timeout.tv_nsec >= 1000000000)
-		{
-			node->timeout.tv_nsec -= 1000000000;
-			node->timeout.tv_sec++;
-		}
-
-		pthread_mutex_lock(&poller->mutex);
-		__poller_insert_node(node, poller); 
-		pthread_mutex_unlock(&poller->mutex);
-		return 0;
-	}
-
-	return -1;
+	pthread_mutex_lock(&poller->mutex);
+	__poller_insert_node(node, poller);
+	pthread_mutex_unlock(&poller->mutex);
+	...
 }
 ```
 
