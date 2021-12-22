@@ -1,6 +1,13 @@
-## faq 62 : 看了下proxy的教程，原始的task在series没有结束的时候是不会被销毁的，对吗?
+#! https://zhuanlan.zhihu.com/p/448014305
+# workflow杂记05 : server task在什么时候销毁
 
-task分为两种情况来分析看看，一种client的情况，一种server的情况
+可见 : faq 62 : 看了下proxy的教程，原始的task在series没有结束的时候是不会被销毁的，对吗?
+
+项目源码 : https://github.com/sogou/workflow
+
+更加详细的源码注释可看 : https://github.com/chanchann/workflow_annotation
+
+### task分为两种情况来分析看看，一种client的情况，一种server的情况
 
 client task的“执行”，指的是“发送request - 收回response”；
 

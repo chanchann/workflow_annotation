@@ -12,7 +12,6 @@
 
 #include <workflow/WFHttpServer.h>
 #include <workflow/WFFacilities.h>
-#include <spdlog/spdlog.h>
 #include <signal.h>
 
 void Fibonacci(int n, protocol::HttpResponse *resp)
@@ -56,7 +55,7 @@ void process(WFHttpTask *task)
     // go task的callback默认为空，但用户同样可以通过set_callback()接口给go task设置一个callback。
     WFGoTask *go_task = WFTaskFactory::create_go_task("go", Fibonacci, n, resp);
     go_task->set_callback([](WFGoTask *task)
-                          { spdlog::info("go task done"); });
+                          { fprintf(stderr, "go task done"); });
     // 默认情况下，框架产生一个与主机CPU数相同的计算线程用于执行计算任务
     series_of(task)->push_back(go_task);
     // 如果我们只使用go task，整个Workflow框架退化成一个线程池。

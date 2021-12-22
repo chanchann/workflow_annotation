@@ -1,6 +1,10 @@
-## workflow杂记04 : 分析Defer deleting server task to increase performance
+# workflow杂记04 : 分析Defer deleting server task to increase performance
 
-https://github.com/sogou/workflow/commit/a7a89d5b5a4426fa5bf85f2d82f7385fd45dd9e3
+分析代码改动地址 : https://github.com/sogou/workflow/commit/a7a89d5b5a4426fa5bf85f2d82f7385fd45dd9e3
+
+项目源码 : https://github.com/sogou/workflow
+
+更加详细的源码注释可看 : https://github.com/chanchann/workflow_annotation
 
 ### 代码对比
 

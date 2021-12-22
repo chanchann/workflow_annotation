@@ -1,3 +1,4 @@
+#! https://zhuanlan.zhihu.com/p/448013208
 # workflow杂记00 : 分析一次http性能改动
 
 分析改动 : https://github.com/sogou/workflow/commit/a6b8a2cde33a1319c0fa731c86e8849fd108fb5b
@@ -20,7 +21,8 @@ message_out
 └── __ComplexKafkaTask::message_out	[vim src/factory/KafkaTaskImpl.cc +112]
 ```
 
-![message_out](https://github.com/chanchann/workflow_annotation/blob/main/src_analysis/pics/message_out.png?raw=true)
+![Image](https://pic4.zhimg.com/80/v2-05af7103fe3c0092ba77b4311324a92d.png)
+<!-- ![message_out](https://github.com/chanchann/workflow_annotation/blob/main/src_analysis/pics/message_out.png?raw=true) -->
 
 在我们简单的http request client中，我们的任务被调起，发送request(request优先复用，然后message_out发送)
 

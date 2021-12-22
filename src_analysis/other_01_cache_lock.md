@@ -1,4 +1,4 @@
-#! https://zhuanlan.zhihu.com/p/415403136
+#! https://zhuanlan.zhihu.com/p/448011565
 # workflow杂记01 : 分析一次cache中lock的改动
 
 分析代码改动地址 : https://github.com/sogou/workflow/commit/b1db18cd39566ef90d4962f29fd080a6e648b081

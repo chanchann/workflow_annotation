@@ -18,10 +18,11 @@ https://github.com/sogou/workflow
 
 - [Http Server 解析3](./src_analysis/22_http_server_02.md)
 
-### Thread Task
+### 计算型task
 
 - [Thread Task](./src_analysis/12_thread_task.md)
 
+- [Go Task](./src_analysis/12_go_task.md)
 
 ### FAQ 中的解析解析
 
@@ -38,7 +39,6 @@ https://github.com/sogou/workflow
 - [workflow杂记03 : cache size 分析](./src_analysis/other_03_cache_size.md)
 
 - [workflow杂记04 : 分析Defer deleting server task to increase performance](./src_analysis/other_04_task_defer_delete.md)
-
 
 ### 其他未整理的文章
 
@@ -66,9 +66,17 @@ https://github.com/sogou/workflow/issues/246
 
 todo : 此处需要源码细节分析
 
-3. srpc 的 compress有压缩算法
+3. workflow 是否有压缩算法
+
+无，but
+
+srpc 的 compress有压缩算法
 
 https://github.com/sogou/srpc/tree/master/src/compress
+
+wfrest也支持gzip 和 br 压缩
+
+可见 https://github.com/wfrest/wfrest
 
 4. pread task 支持 文件分块读取
 
