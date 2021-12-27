@@ -1388,5 +1388,13 @@ https://github.com/sogou/workflow/issues/649
 
 利用push接口
 
+113. MySQL Access Denied
 
+workflow tutorial 里面mysql_cli : error msg: MySQL Access Denied
+
+直接mysql -u -p可以登陆。server版本 8.0.26
+
+A : mysql8的默认认证方式变了，需要你先改server一个配置。
+
+你可以看看这个https://github.com/sogou/workflow/issues/186
 
