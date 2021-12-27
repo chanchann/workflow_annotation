@@ -15,15 +15,15 @@ endif(CURL_FOUND)
 
 核心点:
 
-<LibaryName>_FOUND
+`<LibaryName>_FOUND`
 
-<LibaryName>_INCLUDE_DIR or <LibaryName>_INCLUDES
+`<LibaryName>_INCLUDE_DIR or <LibaryName>_INCLUDES`
 
-<LibaryName>_LIBRARY or <LibaryName>_LIBRARIES
+`<LibaryName>_LIBRARY or <LibaryName>_LIBRARIES`
 
 find_package在一些目录中查找CURL的配置文件。
 
-找到后，find_package会将头文件目录设置到${CURL_INCLUDE_DIR}中，将链接库设置到${CURL_LIBRARY}中。
+找到后，find_package会将头文件目录设置到 `${CURL_INCLUDE_DIR}`中，将链接库设置到`${CURL_LIBRARY}`中。
 
 ## 两种模式
 
@@ -31,11 +31,11 @@ Module模式 / Config模式
 
 ### Module模式
 
-Find<LibraryName>.cmake
+`Find<LibraryName>.cmake`
 
 cmake官方为我们预定义了许多寻找依赖包的Module
 
-path_to_your_cmake/share/cmake-<version>/Modules
+`path_to_your_cmake/share/cmake-<version>/Modules`
 
 我的是 `/usr/share/cmake-3.16/Modules/`
 
@@ -59,11 +59,11 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/)
 
 这个文件负责找到库所在的路径，为我们的项目引入头文件路径和库文件路径
 
-如果Module模式搜索失败，没有找到对应的Find<LibraryName>.cmake文件，则转入Config模式进行搜索
+如果Module模式搜索失败，没有找到对应的`Find<LibraryName>.cmake`文件，则转入Config模式进行搜索
 
 ### Config模式
 
-通过<LibraryName>Config.cmake or <lower-case-package-name>-config.cmake这两个文件来引入我们需要的库
+通过`<LibraryName>Config.cmake` or `<lower-case-package-name>-config.cmake`这两个文件来引入我们需要的库
 
 比如我的 `gtest` 在 `/usr/local/lib/cmake/GTest`
 
@@ -98,9 +98,9 @@ https://cmake.org/cmake/help/latest/command/find_package.html#config-mode-search
 
 cmake默认采取Module模式，如果Module模式未找到库，才会采取Config模式。
 
-如果XXX_DIR路径下找不到XXXConfig.cmake文件 (优先级高)
+如果`XXX_DIR`路径下找不到`XXXConfig.cmake`文件 (优先级高)
 
-则会找/usr/local/lib/cmake/XXX/中的XXXConfig.cmake文件
+则会找`/usr/local/lib/cmake/XXX/`中的`XXXConfig.cmake`文件
 
 其他更为细致的搜索路径和规则见文档。
 
