@@ -1,5 +1,4 @@
-#! https://zhuanlan.zhihu.com/p/416183766
-# workflow 源码解析 05 : ThreadPool00 introduction
+# workflow 源码解析: ThreadPool
 
 项目源码 : https://github.com/sogou/workflow
 
@@ -18,7 +17,7 @@ void thrdpool_destroy(void (*pending)(const struct thrdpool_task *),
 					  thrdpool_t *pool);
 ```
 
-就是线程池创建，销毁，扩容，判断是否在本线程的pool，还有调度
+就是线程池创建，销毁，扩容，判断是否在本线程的pool，还有调度
 
 ## 线程池的创建(创建消费者)
 
