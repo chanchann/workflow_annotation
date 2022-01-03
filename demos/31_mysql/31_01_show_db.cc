@@ -6,6 +6,7 @@ using namespace protocol;
 
 int main()
 {
+    // mysql://username:password@host:port/dbname?character_set=charset&character_set_results=charset
     std::string url = "mysql://root:111111@localhost";
     WFMySQLTask *task = WFTaskFactory::create_mysql_task(url, 0, [](WFMySQLTask *task)
     {

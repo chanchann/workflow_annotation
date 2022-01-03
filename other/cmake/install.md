@@ -39,8 +39,8 @@ install(EXPORT MyLibTargets
     FILE MyLibTargets.cmake
     NAMESPACE XXX::
     DESTINATION lib/cmake/MyLib
-)
 ```
+)
 
 
 

@@ -1,3 +1,3 @@
-add_executable(31_01_create_db 31_01_create_db.cc)
-target_link_libraries(31_01_create_db workflow)
+add_executable(31_01_show_db 31_01_show_db.cc)
+target_link_libraries(31_01_show_db workflow)
 

@@ -1398,3 +1398,85 @@ A : mysql8的默认认证方式变了，需要你先改server一个配置。
 
 你可以看看这个https://github.com/sogou/workflow/issues/186
 
+114. 使用redis/MySQL client时无需先建立连接
+首先看一下redis client任务的创建接口：
+
+```cpp
+class WFTaskFactory
+{
+public:
+    WFRedisTask *create_redis_task(const std::string& url, int retry_max, redis_callback_t callback);
+}
+```
+
+其中url的格式为：redis://:password@host:port/dbnum。port默认值为6379，dbnum默认值为0。
+
+workflow的一个重要特点是由框架来管理连接，使用户接口可以极致的精简，并实现最有效的连接复用。
+
+框架根据任务的用户名密码以及dbnum，来查找一个可以复用的连接。如果找不到则发起新连接并进行用户登陆，数据库选择等操作。
+
+如果是一个新的host，还要进行DNS解析。请求出错还可能retry。这每一个步骤都是异步并且透明的，用户只需要填写自己的request，将任务启动，就可以在callback里得到请求的结果。
+
+唯一需要注意的是，每次任务的创建都需要带着password，因为可能随时有登陆的需要。
+
+同样的方法我们可以用来创建mysql任务。
+
+但对于有事务需求的mysql，则需要通过我们的WFMySQLConnection来创建任务了，否则无法保证整个事务都在同一个连接上进行。WFMySQLConnection依然能做到连接和认证过程的异步性。
+
+115. mysql客户端连接地址的密码中也包含字符@的问题
+
+encode一下。
+
+```cpp
+{
+    std::string url = "mysql://xxxx:" + StringUtil::url_encode_component("@@@123") + "@localhost/"
+    WFMySQLTask *task = WFTaskFactory::create_mysql_task(url, ....);
+}
+```
+
+https://github.com/sogou/workflow/issues/537
+
+116. Mysql转义问题
+
+在使用Mysql的set_query()方法时，发现插入字符串未经过转义的问题，请问workflow有实现EscapeString方法吗？
+
+A : mysql的set_query()目前没有提供转义功能
+
+https://github.com/sogou/workflow/issues/643
+
+117. Mysql连接数过大问题
+
+```cpp
+#include "workflow/WFResourcePool.h"
+#include "workflow/WFTaskFactory.h"
+#include "workflow/WFHtttpServer.h"
+#include "workflow/MySQLResult.h"
+
+WFResourcePool respool(50);  // 假设最大50个并发
+
+void mysql_callback(WFMySQLTask *task)
+{
+    respool.post(NULL);  // 归还资源
+    ...
+}
+
+void process(WFHttpTask *server_task)
+{
+    WFMySQLTask *mysql_task = WFTaskFactory::create_mysql_task(..., mysql_callback);
+    WFConditional *cond = respool.get(mysql_task);
+    series_of(server_task)->push_back(cond);
+}
+
+int main()
+{
+    WFHttpServer(process);
+    ....
+}
+```
+
+1、产生mysql_task之后，通过respool.get得到一个条件任务。用条件任务代替mysql_task。
+
+2、mysql_callback里，先通过respool.post归还资源。
+
+https://github.com/sogou/workflow/issues/643
+
