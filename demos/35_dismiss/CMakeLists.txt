@@ -1,0 +1,2 @@
+add_executable(35_dismiss_test 35_dismiss_test.cc)
+target_link_libraries(35_dismiss_test workflow)

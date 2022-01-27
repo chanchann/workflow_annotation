@@ -1480,3 +1480,16 @@ int main()
 
 https://github.com/sogou/workflow/issues/643
 
+118. WFMySQLConnection
+
+创建一个WFMySQLConnection的时候需要传入一个id，必须全局唯一，之后的调用内部都会由这个id去唯一找到对应的那个连接。
+
+初始化需要传入url，之后在这个connection上创建的任务就不需要再设置url了。
+
+
+
+https://github.com/sogou/workflow/issues/444
+
+
+
+

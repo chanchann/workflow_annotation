@@ -62,10 +62,13 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
 # add_subdirectory(${PROJECT_SOURCE_DIR}/28_string_util)
 # add_subdirectory(${PROJECT_SOURCE_DIR}/29_upstream)
 # add_subdirectory(${PROJECT_SOURCE_DIR}/30_kernel_comm)
-add_subdirectory(${PROJECT_SOURCE_DIR}/31_mysql)
+# add_subdirectory(${PROJECT_SOURCE_DIR}/31_mysql)
 # add_subdirectory(${PROJECT_SOURCE_DIR}/33_header)
 # add_subdirectory(${PROJECT_SOURCE_DIR}/34_https)
+add_subdirectory(${PROJECT_SOURCE_DIR}/35_dismiss)
+add_subdirectory(${PROJECT_SOURCE_DIR}/36_task)
 
 add_subdirectory(${PROJECT_SOURCE_DIR}/other)
+
 
 

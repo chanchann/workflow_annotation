@@ -1,3 +1,5 @@
 add_executable(31_01_show_db 31_01_show_db.cc)
 target_link_libraries(31_01_show_db workflow)
 
+add_executable(31_02_conn 31_02_conn.cc)
+target_link_libraries(31_02_conn workflow)
