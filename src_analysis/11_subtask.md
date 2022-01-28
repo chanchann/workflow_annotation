@@ -1,8 +1,7 @@
-# workflow 源码解析 : SubTask && Series 
+#! https://zhuanlan.zhihu.com/p/462702955
+# workflow 源码解析 : SubTask / Series 
 
 更加详细的源码注释可看 : https://github.com/chanchann/workflow_annotation
-
-![subTask](./pics/subtask.png)
 
 ### 简单的demo
 
@@ -32,6 +31,7 @@ workflow最为基本的运行逻辑，就是串并联，最为简单的运行模
 ### 运行起来
 
 我们先来看看task如何运行起来的，我在创建出task后，start启动
+
 ```cpp
 class WFTimerTask : public SleepRequest
 {
@@ -113,7 +113,7 @@ SeriesWork::SeriesWork(SubTask *first, series_callback_t&& cb) :
 
 3. 这里front和back都为0，我们不把first task算在task里，而是用first指针单独存储(首位都较为特殊，都单独存储)
 
-## dispatch
+## Subtask
 
 引出本节的重点
 
@@ -140,12 +140,177 @@ protected:
 
 其中dispatch和done是纯虚函数，不同的task继承实现不同的逻辑。
 
-dispatch代表任务的发起，可以是任何行为，并且要求任务在完成的时候调用subtask_done方法，一般这时候已经不在dispatch线程了。
+## dispatch
 
-done是任务的完成行为，你可以看到subtask_done里立刻调用了任务的done。done方法把任务交回实现者，实现者要负责内存的回收，比如可能delete this。done方法可以返回一个新任务，可以认为原任务转移到新任务并且立刻dispatch，所以return this也是一个常见做法。
+dispatch代表任务的发起
 
-我们可以对比两个例子
+在此调用task的核心逻辑，并且要求任务在完成的时候调用subtask_done方法。
 
+我们可以对比两个例子:
 
+就拿我们之前分析过的Timer Task和Go Task
 
+```cpp
+// TimerTask
+class SleepRequest : public SubTask, public SleepSession
+{
+	...
+	virtual void dispatch()
+	{
+		if (this->scheduler->sleep(this) < 0)
+		{
+			this->state = SS_STATE_ERROR;
+			this->error = errno;
+			this->subtask_done();
+		}
+	}
+	...
+}
+```
+```cpp
+// GOTask
+class ExecRequest : public SubTask, public ExecSession
+{
+	...
+	virtual void dispatch()
+	{
+		if (this->executor->request(this, this->queue) < 0)
+		{
+			this->state = ES_STATE_ERROR;
+			this->error = errno;
+			this->subtask_done();
+		}
+	}
+	...
+}
+```
 
+一般在XXRequest这一层继承实现dispatch(), 在上次调用核心逻辑函数，执行完调用subtask_done.
+
+## done
+
+done是任务的完成行为，你可以看到subtask_done里立刻调用了任务的done。(此为执行task逻辑的核心，后面仔细讲解)
+
+我们再拿TimerTask和GoTask对比看看
+
+```cpp
+class WFTimerTask : public SleepRequest
+{
+	...
+protected:
+	virtual SubTask *done()
+	{
+		SeriesWork *series = series_of(this);
+
+		if (this->callback)
+			this->callback(this);
+
+		delete this;
+		return series->pop();
+	}
+	...
+};
+```
+
+```cpp
+class WFGoTask : public ExecRequest
+{
+	...
+protected:
+	virtual SubTask *done()
+	{
+		SeriesWork *series = series_of(this);
+
+		if (this->callback)
+			this->callback(this);
+
+		delete this;
+		return series->pop();
+	}
+	...
+};
+```
+
+done方法把任务交回实现者，实现者要负责内存的回收，比如可能delete this。
+
+done方法可以返回一个新任务，所以这里我们在series pop出来。(也有return this的情况，这个之后我们遇到再看。)
+
+## subtask_done
+
+接下里是最为核心的task执行逻辑
+
+这里我们先简化一下，不管parallel
+
+```cpp
+void SubTask::subtask_done()
+{
+	SubTask *cur = this;
+	...
+
+	while (1)
+	{
+		...
+		cur = cur->done();   
+		if (cur)  
+		{
+			...
+			cur->dispatch(); 
+		}
+		...
+		break;
+	}
+}
+```
+
+我们上面的例子，timer task执行，他dispatch后，调用subtask_done,
+
+```cpp
+// TimerTask
+virtual void dispatch()
+{
+	if (this->scheduler->sleep(this) < 0)
+	{
+		this->state = SS_STATE_ERROR;
+		this->error = errno;
+		this->subtask_done();
+	}
+}
+```
+
+当前任务完成，调用done
+
+```cpp
+// TimerTask
+virtual SubTask *done()
+{
+	SeriesWork *series = series_of(this);
+
+	if (this->callback)
+		this->callback(this);
+
+	delete this;
+	return series->pop();
+}
+```
+
+返回了series的下一个task继续执行。当然我们这里series只有一个task，pop出去是null，没有可以执行的，就算结束了。
+
+同理，如果是一个series里多个task，这里就下一个task，dipatch，同上执行。
+
+顺便这里说一下，Series最为重要的一个接口就是push_back将SubTask加入到队列中.
+
+```cpp
+void SeriesWork::push_back(SubTask *task)
+{
+	this->mutex.lock();
+	task->set_pointer(this);
+	this->queue[this->back] = task;
+	if (++this->back == this->queue_size)
+		this->back = 0;
+
+	if (this->front == this->back)
+		this->expand_queue();
+
+	this->mutex.unlock();
+}
+```

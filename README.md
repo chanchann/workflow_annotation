@@ -24,6 +24,8 @@ https://github.com/sogou/workflow
 
 - [Go Task](./src_analysis/12_go_task.md)
 
+- [Timer Task](./src_analysis/15_timer_task.md)
+
 ### FAQ 中的解析解析
 
 - [faq 62 : 原始的task在series没有结束的时候是不会被销毁吗?](./src_analysis/faq_62.md)
