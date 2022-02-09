@@ -190,7 +190,7 @@ ParallelWork::ParallelWork(SeriesWork *const all_series[], size_t n,
 	this->context = NULL;
 }
 
-void ParallelWork::expand_buf()
+void ParallelWork::expand_buf() 
 {
 	SubTask **buf;
 	size_t size;
