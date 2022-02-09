@@ -199,7 +199,7 @@ private:
 
 他这里存着subtasks的数组, 及其个数
 
-注意这里是**subtasks**的数组，是有多少个subtask链
+注意这里是**subtasks**的数组，是有多少个subtask数组
 
 这里作个图示 
 
@@ -262,7 +262,7 @@ void ParallelTask::dispatch()
 }
 ```
 
-可以看出，这个nleft的意思就是剩余的**task链**
+可以看出，这个nleft的意思就是剩余的**task数组**
 
 当减为0，则这个parallel这个任务完成，走到 subtask_done
 
@@ -350,13 +350,11 @@ void SubTask::subtask_done()
 				}
 			*/
 			// dispath中外部循环的是subtasks，上面图中的绿色方块
-			// 而在subtask_done中，我们不断pop出挂载在绿色方块下面的task链中的task
+			// 而在subtask_done中，我们不断pop出挂载在绿色方块下面的子task数组中的task
 			// 我们在外面只设置了开头的这个task的parent和entry
 			// 所以这里每次要挨着把parent和entry都赋值上
 			cur->parent = parent;  
 			cur->entry = entry;
-			// 如果有parent，是parallel的子subtask，则当前entry改为cur
-			// 如果上面没有parallel了，则entry就为队首的subtask
 			if (parent)
 				*entry = cur;
 
@@ -417,11 +415,11 @@ void ParallelTask::dispatch()
 
 end是最右边series的第一个task，parallel subtask 6
 
-nleft为3，有三个subtask链
+nleft为3，有三个subtask数组
 
-那么外部循环就是相当于循环这三个series的subtask链
+那么外部循环就是相当于循环这三个series的subtask数组
 
-我们先看第一个subtask链，parent是parallel subtask 1，entry为subtask 2，dispatch
+我们先看第一个subtask数组，parent是parallel subtask 1，entry为subtask 2，dispatch
 
 ```cpp
 // TimerTask
@@ -508,15 +506,45 @@ void SubTask::subtask_done()
 
 当我们到了没有subtask的情况呢，我们这里会判断是否有parent
 
-比如我们在2，3，4这个series的时候，他的parent是1，那么就nleft - 1，不为0，继续外部循环，（注意我们的外部循环指subtask链的循环，内部循环指subtask链中的subtask循环）
+比如我们在2，3，4这个series的时候，他的parent是1，那么就nleft - 1，不为0，继续外部循环，（注意我们的外部循环指subtask数组的循环，内部循环指subtask数组中的subtask循环）
 
-到了subtask5的这个series走完了，发现parent是1，有，nleft - 1，不为0，外部循环到第3个subtask链，发现还是有parent，但是这次减完了，cur变成了parent，往上走了，continue，如果parallel subtask 1所在series下面还有subtask，那么就继续走下一个task
+到了subtask5的这个series走完了，发现parent是1，有，nleft - 1，不为0，外部循环到第3个subtask数组，发现还是有parent，但是这次减完了，cur变成了parent，往上走了，continue，如果parallel subtask 1所在series下面还有subtask，那么就继续走下一个task
 
 但是这里明显我们只有一个parallel subtask 1，`cur->done()` 返回没有下一个任务了，而且，他又没有parent，没有上一级的parallel，那么就执行结束了
 
+## entry
+
+entry 只有在parallel里才有用到。 
+
+```cpp
+(*p)->parent = this;
+(*p)->entry = p;
+```
+
+```cpp
+parent = cur->parent;
+entry = cur->entry;
+cur = cur->done();   
+if (cur)   
+{
+	cur->parent = parent;
+	cur->entry = entry;
+	if (parent)
+		*entry = cur;
+
+	cur->dispatch(); 
+}
+```
+
+subtasks数组中的各个子subtask的parent始终指向parent节点的parrallel subtask，entry始终指向子subtasks数组中的第一个p
+
+entry = p -> *entry = *p -> *p = cur
+
+每次要用cur替换掉这个parallel task的子subtask数组的第0个元素，这样保证最后一个元素在parallel callback结束前不被delete掉，目的是parallel的callback中，能拿到所有子subtask的结果, 最后随着Parallel消亡，Series消亡，从而最后一个子subtask消亡。·
+
 ## 总结
 
-小小总结一下，这里比较抽象的就是往上走，往下走，但是画个图就很清楚了，当有parallel subtask，那么他就会一直递归下去，执行每一个子树，这相当于是一个多叉树，当执行完这个parallel subtask的所有链（把nleft减为0的时候），cur变成了parent，然后下一个循环去`cur->done()`，得到上一级的下一个subtask去执行，向下递归，然后向上弹出，就是整个subtask_done的核心。
+小小总结一下，这里比较抽象的就是往上走，往下走，但是画个图就很清楚了，当有parallel subtask，那么他就会一直递归下去，执行每一个子树，这相当于是一个多叉树，当执行完这个parallel subtask的所有数组（把nleft减为0的时候），cur变成了parent，然后下一个循环去`cur->done()`，得到上一级的下一个subtask去执行，向下递归，然后向上弹出，就是整个subtask_done的核心。
 
 
 
