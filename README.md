@@ -18,13 +18,21 @@ https://github.com/sogou/workflow
 
 - [Http Server 解析3](./src_analysis/22_http_server_02.md)
 
-### 计算型task
+### 非网络Task
+
+网络task相对较为复杂，可以先从这几个task入手，了解task的继承结构。
 
 - [Thread Task](./src_analysis/12_thread_task.md)
 
 - [Go Task](./src_analysis/12_go_task.md)
 
 - [Timer Task](./src_analysis/15_timer_task.md)
+
+### wf核心
+
+- [SubTask/Series机制](./src_analysis/11_subtask.md)
+
+- [Parallel机制](./src_analysis/11_parallel.md)
 
 ### FAQ 中的解析解析
 

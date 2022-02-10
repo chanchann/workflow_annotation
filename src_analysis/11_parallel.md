@@ -1,4 +1,9 @@
+#! https://zhuanlan.zhihu.com/p/465484448
 # workflow 源码解析 : Parallel
+
+更加详细的源码注释可看 : https://github.com/chanchann/workflow_annotation
+
+前情回顾 : [series/subtask](./11_subtask.md)
 
 在之前的文章中，我们已经接触过了SeriesWork。
 
