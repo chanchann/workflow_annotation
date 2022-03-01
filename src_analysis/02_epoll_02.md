@@ -1,5 +1,4 @@
-#! https://zhuanlan.zhihu.com/p/415001197
-# workflow源码解析01 : epoll
+# workflow源码解析 : epoll part1
 
 项目源码 : https://github.com/sogou/workflow
 
