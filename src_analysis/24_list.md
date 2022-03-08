@@ -1,3 +1,4 @@
+#! https://zhuanlan.zhihu.com/p/474833945
 # workflow 源码解析 : 基础数据结构 list 
 
 项目源码 : https://github.com/sogou/workflow
