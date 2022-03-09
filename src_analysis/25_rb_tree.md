@@ -4,6 +4,8 @@
 
 更加详细的源码注释可看 : https://github.com/chanchann/workflow_annotation
 
+以下的代码源文件 : [code](https://github.com/chanchann/workflow_annotation/tree/main/demos/37_rb_tree)
+
 我们来分析一下workflow中最为基础的数据结构 : rbtree, 是内核红黑树的写法
 
 和上一节讲的list一样，每一个rb_node节点是嵌入在用RB树进行组织的数据结构中，而不是用rb_node指针进行数据结构的组织。
@@ -183,7 +185,7 @@ rb_insert_color(&task->rb_node, root);
 
 ## rb_link_node
 
-初始化新结点： 
+初始化新结点并插入： 
 
 ```c
 static inline void rb_link_node(struct rb_node *node, struct rb_node *parent,
@@ -197,25 +199,279 @@ static inline void rb_link_node(struct rb_node *node, struct rb_node *parent,
 }
 ```
 
+## rb_insert_color
+
+把新插入的节点进行着色，并且修正红黑树使其达到平衡
+
+```c
+void rb_insert_color(struct rb_node *node, struct rb_root *root)
+{
+	struct rb_node *parent, *gparent;
+
+	// 关于插入操作的平衡调整，有两种特殊情况
+	// 1. 如果插入的结点的父结点是黑色的，那我们什么都不做，它仍然满足红黑树定义(这种情况不进入while，do nothing)
+	// 2. 如果插入的是根结点，那么我们直接改变颜色成黑色即可(所以我们这里的parent为null时,不进入while，最后一行变黑
+
+	// 三种情况： 
+	// 1）如果关注点node，它的叔叔结点d为红色 ，执行case1
+	// 2）如果关注点node，它的叔叔结点d为黑色 ，且为父节点点右子节点，执行case2
+	// 3）如果关注点node，它的叔叔结点d为黑色 ，且为父节点点左子节点，执行case3
+
+	// case 1 ：
+	// 操作是
+	// 1）将关注点node的父节点，叔叔节点变黑
+	// 2）将关注点node的祖父节点变红
+	// 3）将关注点node变成祖父结点gparent
+	// 4）跳转到case2 或者case3
+
+	// case 2 
+	// 1) 关注点变成父节点
+	// 2）围绕这个新的关注点左旋
+	// 3）跳到case 3
+
+	// case 3 
+	// 1）围绕关注点的祖父节点右旋
+	// 2）将关注点的父节点和当前的兄弟节点互换颜色(其实就是父和祖交换)
 
 
+	while ((parent = node->rb_parent) && parent->rb_color == RB_RED)
+	{
+		gparent = parent->rb_parent;
+
+		if (parent == gparent->rb_left)
+		{
+			{
+				register struct rb_node *uncle = gparent->rb_right;
+				// case 1
+				if (uncle && uncle->rb_color == RB_RED)
+				{
+					uncle->rb_color = RB_BLACK;   // 将关注点node的叔叔节点变黑
+					parent->rb_color = RB_BLACK;  // 将关注点node的父节点变黑
+					gparent->rb_color = RB_RED;   // 将关注点node的祖父节点变红
+					node = gparent;				  // 将关注点node变成祖父结点gparent
+					continue; 					 
+				}
+			}
+
+			// 叔叔为黑，且是父亲右节点
+			// case2
+			if (parent->rb_right == node)    
+			{
+				register struct rb_node *tmp;
+				__rb_rotate_left(parent, root);  
+				tmp = parent;   
+				parent = node;
+				node = tmp;
+			}
+
+			// case3 
+			// 这里先变父和祖父颜色，然后rotate，效果一样
+			parent->rb_color = RB_BLACK;
+			gparent->rb_color = RB_RED;
+			__rb_rotate_right(gparent, root);
+		} else {  
+			// 相反的对称操作
+		}
+	}
+
+	root->rb_node->rb_color = RB_BLACK;
+}
+```
+
+这里的流程可以对着看看极客时间的[算法课](https://time.geekbang.org/column/100017301)
+
+## 看看workflow如何使用insert
+
+我们看看熟悉的poller中, 如何添加poller node节点
+
+为了很好的和我们上面的`task_insert`做对比，进行风格上一点点小小改动
+
+```c
+static void __poller_tree_insert(struct __poller_node *node, poller_t *poller)
+{
+	struct rb_node **tmp = &poller->timeo_tree.rb_node, *parent = NULL;
+
+	while (*tmp)
+	{
+		struct __poller_node *entry = rb_entry(*tmp, struct __poller_node, rb);
+		
+		parent = *tmp;
+
+		if (__timeout_cmp(node, entry) < 0)
+			tmp = &(*tmp)->rb_left;
+		else
+		{
+			tmp = &(*tmp)->rb_right;
+		}
+	}
+
+	...
+	rb_link_node(&node->rb, parent, tmp);
+	rb_insert_color(&node->rb, &poller->timeo_tree);
+}
+```
+
+是不是一摸一样的操作
+
+## 删除
+
+```c
+extern void rb_erase(struct rb_node *node, struct rb_root *root);
+```
+
+对于删除来说，虽然更为复杂，有二次调整，但是像魔方一样，有规则跳转可循，就不加赘述
+
+而插入和查找才需要我们再封装，删除我们直接使用这个`rb_erase`即可
+
+又看我们最为常见熟悉的poller
+
+```c
+static inline void __poller_tree_erase(struct __poller_node *node,
+									   poller_t *poller)
+{
+	if (&node->rb == poller->tree_first)
+		poller->tree_first = rb_next(&node->rb);
+
+	rb_erase(&node->rb, &poller->timeo_tree);
+	...
+}
+```
+
+## 其他
+
+其余的几个api很简单，看看实现注释也容易看懂
+
+毕竟是个查找树，我们可以找到他逻辑上的前后，第一个，最后一个节点
+
+```c
+/* Find logical next and previous nodes in a tree */
+extern struct rb_node *rb_next(struct rb_node *);
+extern struct rb_node *rb_prev(struct rb_node *);
+extern struct rb_node *rb_first(struct rb_root *);
+extern struct rb_node *rb_last(struct rb_root *);
+```
+
+## 查找实现
+
+其实和insert非常类似，二分查找，走左边还是右边
+
+```c
+struct Task *task_search(struct rb_root *root, int val)
+{
+ 	struct rb_node *node = root->rb_node;
+
+    while (node) {
+        struct Task *data = rb_entry(node, struct Task, rb_node);
+    
+        if (val < data->val)
+            node = node->rb_left;
+        else if (val > data->val)
+            node = node->rb_right;
+        else 
+            return data;
+    }
+    
+    return NULL;
+}
+```
+
+## 完整的小demo
+
+```c
+#include "rbtree.h"
+#include <stdlib.h>
+#include <stdio.h>
+
+#define TASK_NUM 18
+
+struct Task 
+{
+    int val;
+    struct rb_node rb_node;
+};
+
+int task_insert(struct rb_root *root, struct Task *task)
+{
+    struct rb_node **tmp = &(root->rb_node), *parent = NULL;
+ 
+    /* Figure out where to put new node */
+    while (*tmp) {
+        struct Task *this = rb_entry(*tmp, struct Task, rb_node);
+    
+        parent = *tmp;
+        if (task->val < this->val)
+            tmp = &((*tmp)->rb_left);
+        else if (task->val > this->val)
+            tmp = &((*tmp)->rb_right);
+        else 
+            return -1;
+    }
+    
+    /* Add new node and rebalance tree. */
+    rb_link_node(&task->rb_node, parent, tmp);
+    rb_insert_color(&task->rb_node, root);
+    
+    return 0;
+}
+
+struct Task *task_search(struct rb_root *root, int val)
+{
+ 	struct rb_node *node = root->rb_node;
+
+    while (node) {
+        struct Task *data = rb_entry(node, struct Task, rb_node);
+    
+        if (val < data->val)
+            node = node->rb_left;
+        else if (val > data->val)
+            node = node->rb_right;
+        else 
+            return data;
+    }
+    
+    return NULL;
+}
+
+void task_free(struct Task *node)
+{
+	if (node) { 
+		free(node);
+		node = NULL;
+	}
+}
+
+int main()
+{
+    struct rb_root task_tree = RB_ROOT;
+
+    struct Task *task_list[TASK_NUM];
+    // insert
+    int i = 0;
+	for (; i < TASK_NUM; i++) {
+		task_list[i] = (struct Task *)malloc(sizeof(struct Task));
+		task_list[i]->val = i;
+        task_insert(&task_tree, task_list[i]);
+	}
+
+    // traverse
+	struct rb_node *node;
+	printf("traverse all nodes: \n");
+	for (node = rb_first(&task_tree); node; node = rb_next(node))
+		printf("val = %d\n", rb_entry(node, struct Task, rb_node)->val);
+
+    // delete
+	struct Task *data = task_search(&task_tree, 10);
+	if (data) {
+		rb_erase(&data->rb_node, &task_tree);
+		task_free(data);
+	}
+
+    // traverse again
+	printf("traverse again: \n");
+	for (node = rb_first(&task_tree); node; node = rb_next(node))
+		printf("val = %d\n", rb_entry(node, struct Task, rb_node)->val);
+}
+```
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
