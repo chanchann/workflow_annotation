@@ -13,7 +13,7 @@
 
 例如
 
-```c
+```c
 struct Task 
 {
     int val;

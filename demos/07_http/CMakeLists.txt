@@ -8,7 +8,10 @@ target_link_libraries(07_http_req workflow)
 # target_link_libraries(http_parallel workflow spdlog::spdlog)
 
 add_executable(http_echo_defer http_echo_defer.cc)
-target_link_libraries(http_echo_defer workflow spdlog::spdlog)
+target_link_libraries(http_echo_defer workflow)
 
 add_executable(07_http_no_reply 07_http_no_reply.cc)
 target_link_libraries(07_http_no_reply workflow)
+
+add_executable(07_http_simple 07_http_simple.cc)
+target_link_libraries(07_http_simple workflow)
