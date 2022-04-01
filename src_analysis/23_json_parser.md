@@ -186,110 +186,43 @@ static int __parse_json_value(const char *cursor, const char **end,
 }
 ```
 
-我们json一个整体肯定是一个object，因为总先看到一个`{`, 所有先进入`__parse_json_object`
+我们先看最简单的null和boolean
 
-关于object，我们之后再看，我们先只用知道，从`__parse_json_object`中，我们去解析内部的`members`, 调用`__parse_json_members`
-
-注意，这里是`members`, 带一个 `s`, 因为一个object中可能有多个键值对，然后里面`__parse_json_member`去解析单个`member`
-
-在 `:` 后面的解析中，解析kv中的value调用的也是`__parse_json_value`
-
-所以说我们就是利用`__parse_json_value`来解析键值对的值
+## parse null
 
 ```c
-static int __parse_json_value(const char *cursor, const char **end,
-							  int depth, json_value_t *val)
-{
-	int ret;
-
-	switch (*cursor)
-	{
-	...
-
-	case 't':
-		if (strncmp(cursor, "true", 4) != 0)
-			return -2;
-
-		*end = cursor + 4;
-		val->type = JSON_VALUE_TRUE;
-		break;
-
-	case 'f':
-		if (strncmp(cursor, "false", 5) != 0)
-			return -2;
-
-		*end = cursor + 5;
-		val->type = JSON_VALUE_FALSE;
-		break;
-
-	case 'n':
-		if (strncmp(cursor, "null", 4) != 0)
-			return -2;
-
-		*end = cursor + 4;
-		val->type = JSON_VALUE_NULL;
-		break;
-
-	default:
+case 'n':
+	if (strncmp(cursor, "null", 4) != 0)
 		return -2;
-	}
 
-	return 0;
-}
+	*end = cursor + 4;
+	val->type = JSON_VALUE_NULL;
+	break;
 ```
 
-我们先看最简单的null和boolean，直接`strncmp`，就可以判定是否为什么类型了，然后cursor相应往后移
+直接strncmp，就可以判定是否为什么类型了，然后cursor相应往后移
 
-解析完之后
+## parser boolean
 
 ```c
-// json_value_parse function
-if (ret >= 0)
-{
-	while (isspace(*doc))
-		doc++;
+case 't':
+	if (strncmp(cursor, "true", 4) != 0)
+		return -2;
 
-	if (*doc)
-	{
-		__destroy_json_value(val);
-		ret = -2;
-	}
-}
+	*end = cursor + 4;
+	val->type = JSON_VALUE_TRUE;
+	break;
 
-if (ret < 0)
-{
-	free(val);
-	return NULL;
-}
+case 'f':
+	if (strncmp(cursor, "false", 5) != 0)
+		return -2;
+
+	*end = cursor + 5;
+	val->type = JSON_VALUE_FALSE;
+	break;
 ```
 
-我们还要检测后面的ws是否合理，所以先判断刚才解析是否正确，如果不成功直接释放返回null
-
-如果成功了，我们看后面书否都是white space，如果不是，则destroy掉我们刚才解析的`json_value_t`
-
-```c
-static void __destroy_json_value(json_value_t *val)
-{
-	switch (val->type)
-	{
-	case JSON_VALUE_STRING:
-		free(val->value.string);
-		break;
-	case JSON_VALUE_OBJECT:
-		__destroy_json_members(&val->value.object);
-		break;
-	case JSON_VALUE_ARRAY:
-		__destroy_json_elements(&val->value.array);
-		break;
-	}
-}
-```
-
-根据类型不同，有不同的`destroy`方式。
-
-这里就是parse的所有流程，非常简单。
-
-解下来我们逐步分析下其他类型是如何解析。
+同理也是直接strncmp
 
 ## parse number
 
@@ -356,6 +289,75 @@ A valid floating point number for strtod using the "C" locale is formed by an op
 ```
 
 我们如果先看到`-`,则跳过，如果后面的是0开头，后面还有数字, 则invalid，注意第二条`0x`, `0X` 也不满足要求，所以我们还要检查一下。
+
+## parse string
+
+首先看到`"`便可能是string
+
+```c
+case '\"':
+	cursor++;
+	ret = __json_string_length(cursor);
+	if (ret < 0)
+		return ret;
+
+	val->value.string = (char *)malloc(ret + 1);
+	if (!val->value.string)
+		return -1;
+
+	ret = __parse_json_string(cursor, end, val->value.string);
+	if (ret < 0)
+		return ret;
+
+	val->type = JSON_VALUE_STRING;
+	break;
+```
+
+1. 首先获取长度
+
+```c
+static int __json_string_length(const char *cursor)
+{
+	int len = 0;
+
+	while (1)
+	{
+		if (*cursor == '\"')
+			break;
+
+		if (*(const unsigned char *)cursor < ' ')
+			return -2;
+
+		cursor++;
+		if (cursor[-1] == '\\')
+		{
+			if (!*cursor)
+				return -2;
+
+			cursor++;
+		}
+
+		len++;
+	}
+
+	return len;
+}
+```
+
+一个字符串是`"xxx"`, 所以直到下一个`"`才break结束。
+
+注意这里`if (*(const unsigned char *)cursor < ' ')`, 
+
+32是空格, 0～31是控制字符或通信专用字符
+
+无转义字符就是普通的字符，语法中列出了合法的码点范围。
+
+```
+unescaped = %x20-21 / %x23-5B / %x5D-10FFFF
+```
+
+要注意的是，该范围不包括 0 至 31、双引号和反斜线，这些码点都必须要使用转义方式表示
+
 
 
 
