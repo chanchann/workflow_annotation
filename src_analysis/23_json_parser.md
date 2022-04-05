@@ -1,6 +1,8 @@
 # Json parser
 
-## 类型
+## 类型
+
+![json value](./pics/json_val.png)
 
 JSON 只包含 6 种数据类型
 
@@ -226,6 +228,8 @@ case 'f':
 
 ## parse number
 
+![json num](./pics/json_num.png)
+
 ```
 number = [ "-" ] int [ frac ] [ exp ]
 int = "0" / digit1-9 *digit
@@ -292,6 +296,26 @@ A valid floating point number for strtod using the "C" locale is formed by an op
 
 ## parse string
 
+```
+string = quotation-mark *char quotation-mark
+char = unescaped /
+   escape (
+       %x22 /          ; "    quotation mark  U+0022
+       %x5C /          ; \    reverse solidus U+005C
+       %x2F /          ; /    solidus         U+002F
+       %x62 /          ; b    backspace       U+0008
+       %x66 /          ; f    form feed       U+000C
+       %x6E /          ; n    line feed       U+000A
+       %x72 /          ; r    carriage return U+000D
+       %x74 /          ; t    tab             U+0009
+       %x75 4HEXDIG )  ; uXXXX                U+XXXX
+
+escape = %x5C          ; \
+quotation-mark = %x22  ; "
+unescaped = %x20-21 / %x23-5B / %x5D-10FFFF
+```
+
+
 首先看到`"`便可能是string
 
 ```c
@@ -307,7 +331,10 @@ case '\"':
 
 	ret = __parse_json_string(cursor, end, val->value.string);
 	if (ret < 0)
+	{
+		free(val->value.string);
 		return ret;
+	}
 
 	val->type = JSON_VALUE_STRING;
 	break;
@@ -358,6 +385,438 @@ unescaped = %x20-21 / %x23-5B / %x5D-10FFFF
 
 要注意的是，该范围不包括 0 至 31、双引号和反斜线，这些码点都必须要使用转义方式表示
 
+2. 分配空间
+
+```c
+val->value.string = (char *)malloc(ret + 1);
+```
+
+这里是ret + 1是因为还有一个`\0`
+
+3. 解析string
+
+```c
+ret = __parse_json_string(cursor, end, val->value.string);
+```
+
+json共支持 9 种转义序列
+
+![json str](./pics/json_str.png)
+
+```c
+static int __parse_json_string(const char *cursor, const char **end,
+							   char *str)
+{
+	int ret;
+
+	while (*cursor != '\"')
+	{
+		if (*cursor == '\\')
+		{
+			cursor++;
+			switch (*cursor)
+			{
+			case '\"':
+				*str = '\"';
+				break;
+			case '\\':
+				*str = '\\';
+				break;
+			....
+
+			case 'u':
+				cursor++;
+				ret = __parse_json_unicode(cursor, &cursor, str);
+				if (ret < 0)
+					return ret;
+
+				str += ret;
+				continue;
+
+			default:
+				return -2;
+			}
+		}
+		else
+			*str = *cursor;
+
+		cursor++;
+		str++;
+	}
+
+	*str = '\0';
+	*end = cursor + 1;
+	return 0;
+}
+```
+
+看图应该很清楚，在两个`"`之间，如果我们找到`\\`， 那么他如果合法的话，就应该是一个转移字符
+
+如果后面不是那么9 种就不合理，这里比较特殊的就是`\uxxxx`这种序列, 这个代表unicode
+
+如果是非转义字符，那我们直接复制过来即可`*str = *cursor;`
+
+## 解析unicode 
+
+在开始解析这部分之前，首先，我们要了解一下几个概念，什么是ascii, unicode, utf8
+
+可以参考:
+
+https://www.ruanyifeng.com/blog/2007/10/ascii_unicode_and_utf-8.html
+
+https://zhuanlan.zhihu.com/p/22731540
+
+C 标准库没有关于 Unicode 的处理功能（C++11 有），我们会实现 JSON 库所需的字符编码处理功能。
+
+目前我们只支持utf8
+
+我们分为以下三步：
+
+```c
+static int __parse_json_unicode(const char *cursor, const char **end,
+								char *utf8)
+{
+	// step 1 : 读入4位16进制数
+	ret = __parse_json_hex4(cursor, end, &code);
+
+	// step 2 : 转化为码点
+	if (code >= 0xdc00 && code <= 0xdfff)
+		return -2;
+
+	if (code >= 0xd800 && code <= 0xdbff)
+	{
+		cursor = *end;
+		if (*cursor != '\\')
+			return -2;
+
+		cursor++;
+		if (*cursor != 'u')
+			return -2;
+
+		cursor++;
+		ret = __parse_json_hex4(cursor, end, &next);
+		if (ret < 0)
+			return ret;
+
+    	if (next < 0xdc00 || next > 0xdfff)
+			return -2;
+
+		code = (((code & 0x3ff) << 10) | (next & 0x3ff)) + 0x10000;
+	}
+
+	// step 3 : encode utf8
+	if (code <= 0x7f)
+	{
+		utf8[0] = code;
+		return 1;
+	}
+	else if (code <= 0x7ff)
+	{
+		utf8[0] = 0xc0 | (code >> 6);
+		utf8[1] = 0x80 | (code & 0x3f);
+		return 2;
+	}
+    else if (code <= 0xffff)
+	{
+        utf8[0] = 0xe0 | (code >> 12);
+		utf8[1] = 0x80 | ((code >> 6) & 0x3f);
+		utf8[2] = 0x80 | (code & 0x3f);
+		return 3;
+	}
+	else
+	{
+		utf8[0] = 0xf0 | (code >> 18);
+		utf8[1] = 0x80 | ((code >> 12) & 0x3f);
+		utf8[2] = 0x80 | ((code >> 6) & 0x3f);
+		utf8[3] = 0x80 | (code & 0x3f);
+		return 4;
+	}
+}
+```
+
+1. step1 : 我们先读 4 位 16 进制数字
+
+```c
+static int __parse_json_hex4(const char *cursor, const char **end,
+							 unsigned int *code)
+{
+	int hex;
+	int i;
+
+	*code = 0;
+	for (i = 0; i < 4; i++)
+	{
+		hex = *cursor;
+		if (hex >= '0' && hex <= '9')
+			hex = hex - '0';
+		else if (hex >= 'A' && hex <= 'F')
+			hex = hex - 'A' + 10;
+		else if (hex >= 'a' && hex <= 'f')
+			hex = hex - 'a' + 10;
+		else
+			return -2;
+
+		*code = (*code << 4) + hex;
+		cursor++;
+    }
+
+	*end = cursor;
+	return 0;
+}
+```
+
+2. 转化码点
+
+- JSON字符串中的 \uXXXX 是以 16 进制表示码点 U+0000 至 U+FFFF
+
+- unicode字符被收录为统一字符集（Universal Coded Character Set, UCS），每个字符映射至一个整数码点（code point）, 码点的范围是 0 至 0x10FFFF，码点又通常记作 U+XXXX，当中 XXXX 为 16 进位数字
+
+那么我们发现，4 位的 16 进制数字只能表示 0 至 0xFFFF，UCS 的码点是从 0 至 0x10FFFF，那怎么能表示多出来的码点？
+
+U+0000 至 U+FFFF 这组 Unicode 字符称为基本多文种平面（basic multilingual plane, BMP）
+
+还有另外 16 个平面。那么 BMP 以外的字符，JSON 会使用代理对（surrogate pair）表示 \uXXXX\uYYYY
+
+我们可以参考维基百科: [unicode](https://zh.wikipedia.org/wiki/
+Unicode%E5%AD%97%E7%AC%A6%E5%B9%B3%E9%9D%A2%E6%98%A0%E5%B0%84#%E5%9F%BA%E6%9C%AC%E5%A4%9A%E6%96%87%E7%A7%8D%E5%B9%B3%E9%9D%A2)
+
+其中D800-DBFF: 高代理项（high surrogate), DC00-DFFF:低代理项（low surrogate）
+
+转换公式为
+
+```
+codepoint = (((h & 0x3ff) << 10) | (L & 0x3ff)) + 0x10000;
+```
+
+```c
+// 这个是低代理项低，错误
+if (code >= 0xdc00 && code <= 0xdfff)
+	return -2;
+
+// 如果这个是高代理项
+if (code >= 0xd800 && code <= 0xdbff)
+{
+	cursor = *end;
+	// 首先要读到下一个\uxxxx
+	if (*cursor != '\\')
+		return -2;
+
+	cursor++;
+	if (*cursor != 'u')
+		return -2;
+
+	cursor++;
+	ret = __parse_json_hex4(cursor, end, &next);
+	if (ret < 0)
+		return ret;
+	// 下一个低代理项不满足需求
+	if (next < 0xdc00 || next > 0xdfff)
+		return -2;
+
+	// 运用公式转化
+	code = (((code & 0x3ff) << 10) | (next & 0x3ff)) + 0x10000;
+}
+```
+
+3. step3 : encode utf8
+
+下表总结了编码规则，字母x表示可用编码的位。
+
+```
+Unicode符号范围     |        UTF-8编码方式
+(十六进制)          |         （二进制）
+----------------------+---------------------------------------------
+0000 0000-0000 007F | 0xxxxxxx
+0000 0080-0000 07FF | 110xxxxx 10xxxxxx
+0000 0800-0000 FFFF | 1110xxxx 10xxxxxx 10xxxxxx
+0001 0000-0010 FFFF | 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+```
+
+```c
+if (code <= 0x7f)
+{
+	utf8[0] = code;
+	return 1;
+}
+else if (code <= 0x7ff)
+{
+	utf8[0] = 0xc0 | (code >> 6);
+	utf8[1] = 0x80 | (code & 0x3f);
+	return 2;
+}
+else if (code <= 0xffff)
+{
+	utf8[0] = 0xe0 | (code >> 12);
+	utf8[1] = 0x80 | ((code >> 6) & 0x3f);
+	utf8[2] = 0x80 | (code & 0x3f);
+	return 3;
+}
+else
+{
+	utf8[0] = 0xf0 | (code >> 18);
+	utf8[1] = 0x80 | ((code >> 12) & 0x3f);
+	utf8[2] = 0x80 | ((code >> 6) & 0x3f);
+	utf8[3] = 0x80 | (code & 0x3f);
+	return 4;
+}
+```
+
+## 解析数组
+
+我们至此开始分析复合数据类型
+
+![json arr](./pics/json_arr.png)
+
+```c
+case '[':
+	cursor++;
+	ret = __parse_json_array(cursor, end, depth, &val->value.array);
+	if (ret < 0)
+		return ret;
+
+	val->type = JSON_VALUE_ARRAY;
+	break;
+```
+
+我们回看一下array的数据结构
+
+```c
+struct __json_value
+{
+	int type;
+	union
+	{
+		char *string;
+		double number;
+		json_object_t object;
+		json_array_t array;
+	} value;
+};
+```
+
+```c
+struct __json_array
+{
+	struct list_head head;
+	int size;
+};
+```
+
+可以看出，是一个链表串起来的结构
+
+```c
+static int __parse_json_array(const char *cursor, const char **end,
+							  int depth, json_array_t *arr)
+{
+	int ret;
+
+	if (depth == JSON_DEPTH_LIMIT)
+		return -3;
+
+	INIT_LIST_HEAD(&arr->head);   // 初始化链表
+	ret = __parse_json_elements(cursor, end, depth + 1, arr);
+	if (ret < 0)
+	{
+		__destroy_json_elements(arr);
+		return ret;
+	}
+
+	arr->size = ret;
+	return 0;
+}
+```
+
+我们去解析他里面的元素
+
+一个 JSON 数组可以包含零至多个元素, 而且是可以嵌套的
+
+一个数组可以包含零至多个值，以逗号分隔
+
+这里举几个例子: `[]、[1,2,true]、[[1,2],[3,4],"abc"]`
+
+注意 JSON 不接受末端额外的逗号，例如 [1,2,] 是不合法的
+
+```c
+static int __parse_json_elements(const char *cursor, const char **end,
+								 int depth, json_array_t *arr)
+{
+	json_element_t *elem;
+	int cnt = 0;
+	int ret;
+
+	// 跳过空格
+	while (isspace(*cursor))
+		cursor++;
+
+	// 如果找到下一个], 匹配成功直接返回
+	if (*cursor == ']')
+	{
+		*end = cursor + 1;
+		return 0;
+	}
+
+	// 挨个寻找数组元素
+	while (1)
+	{
+		// 这里说下json_element_t
+		// typedef struct __json_element json_element_t;
+		/*
+			struct __json_element
+			{
+				struct list_head list;
+				json_value_t value;
+			};
+		*/		
+		// 元素可以串在链表上
+		elem = (json_element_t *)malloc(sizeof (json_element_t));
+		if (!elem)
+			return -1;
+
+		ret = __parse_json_value(cursor, &cursor, depth, &elem->value);
+		if (ret < 0)
+		{
+			free(elem);
+			return ret;
+		}
+
+		list_add_tail(&elem->list, &arr->head);
+		cnt++;
+
+		while (isspace(*cursor))
+			cursor++;
+
+		if (*cursor == ',')
+		{
+			cursor++;
+			while (isspace(*cursor))
+				cursor++;
+		}
+		else if (*cursor == ']')
+			break;
+		else
+			return -2;
+	}
+
+	*end = cursor + 1;
+	return cnt;
+}
+```
+
+
+
+
+
+## reference 
+
+https://zh.wikipedia.org/wiki/Unicode%E5%AD%97%E7%AC%A6%E5%B9%B3%E9%9D%A2%E6%98%A0%E5%B0%84#%E5%9F%BA%E6%9C%AC%E5%A4%9A%E6%96%87%E7%A7%8D%E5%B9%B3%E9%9D%A2
+
+https://www.cplusplus.com/reference/cstdlib/strtod/
+
+https://www.ecma-international.org/wp-content/uploads/ECMA-404_2nd_edition_december_2017.pdf
+
+https://www.ruanyifeng.com/blog/2007/10/ascii_unicode_and_utf-8.html
+
+https://zhuanlan.zhihu.com/p/22457315
 
 
 

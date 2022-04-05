@@ -7,7 +7,7 @@
 #include "list.h"
 #include "rbtree.h"
 #include "json_parser.h"
-
+#include <stdio.h>
 #define JSON_DEPTH_LIMIT	1024
 
 struct __json_object
@@ -365,7 +365,7 @@ static int __parse_json_value(const char *cursor, const char **end,
 							  int depth, json_value_t *val)
 {
 	int ret;
-
+	const char *tmp = cursor;
 	switch (*cursor)
 	{
 	case '\"':
@@ -373,14 +373,16 @@ static int __parse_json_value(const char *cursor, const char **end,
 		ret = __json_string_length(cursor);
 		if (ret < 0)
 			return ret;
-
 		val->value.string = (char *)malloc(ret + 1);
 		if (!val->value.string)
 			return -1;
 
 		ret = __parse_json_string(cursor, end, val->value.string);
 		if (ret < 0)
+		{
+			free(val->value.string);
 			return ret;
+		}
 
 		val->type = JSON_VALUE_STRING;
 		break;
