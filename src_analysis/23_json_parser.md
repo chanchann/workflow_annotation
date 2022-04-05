@@ -1,4 +1,19 @@
+#! https://zhuanlan.zhihu.com/p/493430118
 # Json parser ：part1 解析
+
+项目地址 : https://github.com/Barenboim/json-parser
+
+这是一个简单，性能高的json parser
+
+我们要实现的 Json 库，主要是完成 3 个需求：
+
+1. 把 Json 文本解析为一个数据结构（parse）。
+
+2. 提供接口访问该数据结构（access）。
+
+3. 把数据结构转换成 Json 文本（stringify）。
+
+我们第一部分，首先来分析第一个需求：解析Json文本
 
 ## 类型
 
@@ -31,16 +46,6 @@ object: 表示为 { ... }
 #define JSON_VALUE_FALSE	6
 #define JSON_VALUE_NULL		7
 ```
-
-## 需求
-
-我们要实现的 JSON 库，主要是完成 3 个需求：
-
-1. 把 JSON 文本解析为一个树状数据结构（parse）。
-
-2. 提供接口访问该数据结构（access）。
-
-3. 把数据结构转换成 JSON 文本（stringify）。
 
 ## parse接口
 
@@ -1049,6 +1054,10 @@ static void __insert_json_member(json_member_t *memb, json_object_t *obj)
 	list_add_tail(&memb->list, &obj->head);
 }
 ```
+
+## 总结
+
+至此，我们大致分析完了json的几种类型解析。
 
 ## reference 
 
