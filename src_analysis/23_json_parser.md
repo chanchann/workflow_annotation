@@ -1,4 +1,4 @@
-# Json parser
+# Json parser ：part1 解析
 
 ## 类型
 
@@ -704,6 +704,8 @@ struct __json_array
 
 可以看出，是一个链表串起来的结构
 
+关于内核链表，可以看看我们之前的解析[内核链表](https://zhuanlan.zhihu.com/p/474833945)
+
 ```c
 static int __parse_json_array(const char *cursor, const char **end,
 							  int depth, json_array_t *arr)
@@ -768,10 +770,12 @@ static int __parse_json_elements(const char *cursor, const char **end,
 			};
 		*/		
 		// 元素可以串在链表上
+		// 他存储的是我们需要解析的json_value_t，可以是json任何合法的value，当然也可以是array，从而嵌套
 		elem = (json_element_t *)malloc(sizeof (json_element_t));
 		if (!elem)
 			return -1;
 
+		// 从中parse一个value
 		ret = __parse_json_value(cursor, &cursor, depth, &elem->value);
 		if (ret < 0)
 		{
@@ -779,19 +783,22 @@ static int __parse_json_elements(const char *cursor, const char **end,
 			return ret;
 		}
 
+		// 将元素加入数组链表中
 		list_add_tail(&elem->list, &arr->head);
 		cnt++;
 
+		// 继续下一个元素
 		while (isspace(*cursor))
 			cursor++;
-
+		
+		// 数组中的元素之间以 , 分割
 		if (*cursor == ',')
 		{
 			cursor++;
 			while (isspace(*cursor))
 				cursor++;
 		}
-		else if (*cursor == ']')
+		else if (*cursor == ']')  
 			break;
 		else
 			return -2;
@@ -802,9 +809,246 @@ static int __parse_json_elements(const char *cursor, const char **end,
 }
 ```
 
+## 解析对象
 
+![json obj](./pics/json_obj.png)
 
+JSON 对象和 JSON 数组非常相似
 
+区别 :
+
+1. JSON 对象以花括号 {}包裹表示
+
+2. 另外 JSON 对象由对象成员（member）组成，而 JSON 数组由 JSON value组成
+
+对象成员，就是键值对，键必须为 JSON 字符串，然后值是任何 JSON value，中间以冒号 :
+
+```c
+case '{':
+	cursor++;
+	ret = __parse_json_object(cursor, end, depth, &val->value.object);
+	if (ret < 0)
+		return ret;
+
+	val->type = JSON_VALUE_OBJECT;
+	break;
+```
+
+我们先看看object的数据结构
+
+```c
+typedef struct __json_object json_object_t;
+
+struct __json_object
+{
+	struct list_head head;
+	struct rb_root root;
+	int size;
+};
+```
+
+他有一个链表把member（kv对）串起来，还有一个红黑树的数据结构存储kv映射
+
+```c
+static int __parse_json_object(const char *cursor, const char **end,
+							   int depth, json_object_t *obj)
+{
+	int ret;
+
+	if (depth == JSON_DEPTH_LIMIT)
+		return -3;
+	// 初始化链表和红黑树
+	INIT_LIST_HEAD(&obj->head);
+	obj->root.rb_node = NULL;
+	// 核心在于去挨个解析members
+	ret = __parse_json_members(cursor, end, depth + 1, obj);
+	if (ret < 0)
+	{
+		__destroy_json_members(obj);
+		return ret;
+	}
+
+	obj->size = ret;
+	return 0;
+}
+```
+
+我们得看看对象成员（member）这个kv对的数据结构
+
+```c
+typedef struct __json_member json_member_t;
+
+struct __json_member
+{
+	struct list_head list;
+	struct rb_node rb;
+	json_value_t value;  // value
+	char name[1];   // key, 这里只是占位，实际上等malloc来分配大小
+};
+```
+
+```c
+static int __parse_json_members(const char *cursor, const char **end,
+								int depth, json_object_t *obj)
+{
+	json_member_t *memb;
+	int cnt = 0;
+	int ret;
+
+	while (isspace(*cursor))
+		cursor++;
+
+	// 如果找到下一个}匹配成功则返回
+	if (*cursor == '}')
+	{
+		*end = cursor + 1;
+		return 0;
+	}
+
+	while (1)
+	{
+		// 我们看文档的图知道，键值对，键必须为 JSON 字符串
+		// step1: 解析key这个string
+		// 所以如果不是"开头就是invalid的
+		if (*cursor != '\"')
+			return -2;
+
+		cursor++;
+		ret = __json_string_length(cursor);
+		if (ret < 0)
+			break;
+
+		// char name[1] 只是占位，实际上在这里来分配，一个是offset(前面的大小是确定的)， 然后是string的长度+1
+		memb = (json_member_t *)malloc(offsetof(json_member_t, name) + ret + 1);
+		if (!memb)
+			return -1;
+	
+		// 解析kv对
+		ret = __parse_json_member(cursor, &cursor, depth, memb);
+		if (ret < 0)
+		{
+			free(memb);
+			return ret;
+		}
+
+		// 将解析出来的kv(member)插入到obj数据中关联起来
+		__insert_json_member(memb, obj);
+		cnt++;
+
+		while (isspace(*cursor))
+			cursor++;
+		
+		// 和array一样，用`,`分割
+		if (*cursor == ',')
+		{
+			cursor++;
+			while (isspace(*cursor))
+				cursor++;
+		}
+		else if (*cursor == '}')
+			break;
+		else
+			return -2;
+	}
+
+	*end = cursor + 1;
+	return cnt;
+}
+
+```
+
+```c
+static int __parse_json_member(const char *cursor, const char **end,
+							   int depth, json_member_t *memb)
+{
+	int ret;
+
+	// 首先key必须是string，存入json_member_t的name中，这个name就是key
+	ret = __parse_json_string(cursor, &cursor, memb->name);
+	if (ret < 0)
+		return ret;
+
+	while (isspace(*cursor))
+		cursor++;
+
+	// k : v以 `:` 分割
+	if (*cursor != ':')
+		return -2;
+
+	cursor++;
+	while (isspace(*cursor))
+		cursor++;
+
+	// 然后解析v，他是json value
+	ret = __parse_json_value(cursor, &cursor, depth, &memb->value);
+	if (ret < 0)
+		return ret;
+
+	*end = cursor;
+	return 0;
+}
+```
+
+这里我们需要将kv对插入红黑树中，这里可以看看我们之前对红黑树使用对解析[红黑树](https://zhuanlan.zhihu.com/p/478396220)
+
+我们先复习一下插入一个结构的模版代码
+
+```c
+struct Task 
+{
+    int val;
+    struct rb_node rb_node;
+};
+
+int task_insert(struct rb_root *root, struct Task *task)
+{
+    struct rb_node **tmp = &(root->rb_node), *parent = NULL;
+ 
+    /* Figure out where to put new node */
+    while (*tmp) {
+        struct Task *this = rb_entry(*tmp, struct Task, rb_node);
+    
+        parent = *tmp;
+        if (task->val < this->val)
+            tmp = &((*tmp)->rb_left);
+        else if (task->val > this->val)
+            tmp = &((*tmp)->rb_right);
+        else 
+            return -1;
+    }
+    
+    /* Add new node and rebalance tree. */
+    rb_link_node(&task->rb_node, parent, tmp);
+    rb_insert_color(&task->rb_node, root);
+    
+    return 0;
+}
+```
+
+对照着我们可以看到如何插入memb对象到obj对象中，将其关联起来，并且这里还将memb挂载到了obj的链表中
+
+```c
+static void __insert_json_member(json_member_t *memb, json_object_t *obj)
+{
+	struct rb_node **p = &obj->root.rb_node;
+	struct rb_node *parent = NULL;
+	json_member_t *entry;
+
+	while (*p)
+	{
+		parent = *p;
+		entry = rb_entry(*p, json_member_t, rb);
+		if (strcmp(memb->name, entry->name) < 0)
+			p = &(*p)->rb_left;
+		else
+			p = &(*p)->rb_right;
+	}
+
+	rb_link_node(&memb->rb, parent, p);
+	rb_insert_color(&memb->rb, &obj->root);
+	list_add_tail(&memb->list, &obj->head);
+}
+```
 
 ## reference 
 
@@ -818,9 +1062,9 @@ https://www.ruanyifeng.com/blog/2007/10/ascii_unicode_and_utf-8.html
 
 https://zhuanlan.zhihu.com/p/22457315
 
+https://zhuanlan.zhihu.com/p/478396220
 
-
-
+https://zhuanlan.zhihu.com/p/474833945
 
 
 
