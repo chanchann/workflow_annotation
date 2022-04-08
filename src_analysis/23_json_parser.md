@@ -1,5 +1,5 @@
 #! https://zhuanlan.zhihu.com/p/493430118
-# Json parser ：part1 解析
+# Workflow 源码解析 Json parser ：part1 解析
 
 项目地址 : https://github.com/Barenboim/json-parser
 
@@ -7,11 +7,11 @@
 
 我们要实现的 Json 库，主要是完成 3 个需求：
 
-1. 把 Json 文本解析为一个数据结构（parse）。
+1.把 Json 文本解析为一个数据结构（parse）。
 
-2. 提供接口访问该数据结构（access）。
+2.提供接口访问该数据结构（access）。
 
-3. 把数据结构转换成 Json 文本（stringify）。
+3.把数据结构转换成 Json 文本（stringify）。
 
 我们第一部分，首先来分析第一个需求：解析Json文本
 
@@ -582,8 +582,7 @@ U+0000 至 U+FFFF 这组 Unicode 字符称为基本多文种平面（basic multi
 
 还有另外 16 个平面。那么 BMP 以外的字符，JSON 会使用代理对（surrogate pair）表示 \uXXXX\uYYYY
 
-我们可以参考维基百科: [unicode](https://zh.wikipedia.org/wiki/
-Unicode%E5%AD%97%E7%AC%A6%E5%B9%B3%E9%9D%A2%E6%98%A0%E5%B0%84#%E5%9F%BA%E6%9C%AC%E5%A4%9A%E6%96%87%E7%A7%8D%E5%B9%B3%E9%9D%A2)
+我们可以参考维基百科: [unicode](https://zh.wikipedia.org/wiki/Unicode%E5%AD%97%E7%AC%A6%E5%B9%B3%E9%9D%A2%E6%98%A0%E5%B0%84#%E5%9F%BA%E6%9C%AC%E5%A4%9A%E6%96%87%E7%A7%8D%E5%B9%B3%E9%9D%A2)
 
 其中D800-DBFF: 高代理项（high surrogate), DC00-DFFF:低代理项（low surrogate）
 
