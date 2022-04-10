@@ -1,4 +1,4 @@
-# Workflow 源码解析 Json parser ：part2 使用
+# Workflow 源码解析 Json parser ：part2 access
 
 项目地址 : https://github.com/Barenboim/json-parser
 
@@ -428,6 +428,70 @@ void print_json_object(const json_object_t *obj, int depth)
 
 就是不断找下一个kv对
 
+```c
+const char *json_object_next_name(const char *prev,
+								  const json_object_t *obj)
+{
+	struct list_head *pos;
+	json_member_t *memb;
+
+	// 如果没有提供上一个的key，说明这是第一个
+	if (prev)
+	{
+		// 不是第一个，那直接用哪个name字段来找到上一个这个member
+		memb = list_entry(prev, json_member_t, name);
+		// prev member的下一个就是当前节点
+		pos = memb->list.next;
+	}
+	else
+	{
+		// 如果是第一个的话，obj->head是个dummy head，他的next就是第一个及诶单
+		pos = obj->head.next;
+	}
+		
+	// 判断是否遍历完
+	if (pos == &obj->head)
+		return NULL;
+
+	// 把当前的name返回回去当成下一个的prev
+	// 注意这里找到list的地址，就是member的地址
+	/*
+		struct __json_member
+		{
+			struct list_head list;
+			...
+		};
+	*/
+	memb = list_entry(pos, json_member_t, list);
+	return memb->name;
+}
+```
+
+依次找下一个val的逻辑一模一样
+
+```cpp
+const json_value_t *json_object_next_value(const json_value_t *prev,
+										   const json_object_t *obj)
+{
+	struct list_head *pos;
+	json_member_t *memb;
+
+	if (prev)
+	{
+		memb = list_entry(prev, json_member_t, value);
+		pos = memb->list.next;
+	}
+	else
+		pos = obj->head.next;
+
+	if (pos == &obj->head)
+		return NULL;
+
+	memb = list_entry(pos, json_member_t, list);
+	return &memb->value;
+}
+```
+
 4. array
 
 ```
@@ -496,3 +560,177 @@ void print_json_array(const json_array_t *arr, int depth)
 	printf("]");
 }
 ```
+
+当然他遍历array中的element的逻辑和object也类似
+
+```cpp
+#define json_array_for_each(val, arr) \
+	for (val = NULL; val = json_array_next_value(val, arr), val; )
+```
+
+不过是obj需要找k-v，而arr只需要找一个value即可
+
+这里说一个小细节
+
+```c
+#define json_array_for_each(val, arr) \
+	for (val = NULL; val = json_array_next_value(val, arr); )
+```
+
+为何还要在后面多写一个val
+
+因为编译器会warning :  warning: suggest parentheses around assignment used as truth value [-Wparentheses]
+
+字面意思
+
+```cpp
+const json_value_t *json_array_next_value(const json_value_t *prev,
+										  const json_array_t *arr)
+{
+	struct list_head *pos;
+	json_element_t *elem;
+
+	if (prev)
+	{
+		elem = list_entry(prev, json_element_t, value);
+		pos = elem->list.next;
+	}
+	else
+		pos = arr->head.next;
+
+	if (pos == &arr->head)
+		return NULL;
+
+	elem = list_entry(pos, json_element_t, list);
+	return &elem->value;
+}
+```
+
+5. 简单类型
+
+直接打印即可
+
+```cpp
+case JSON_VALUE_TRUE:
+	printf("true");
+	break;
+case JSON_VALUE_FALSE:
+	printf("false");
+	break;
+case JSON_VALUE_NULL:
+	printf("null");
+	break;
+```
+
+## 获取size
+
+1. 获取obj的size
+
+```
+函数签名: int json_object_size(const json_object_t *obj);
+描述: 
+获取Json object的size
+```
+
+size字段在object里记录了
+
+```c
+struct __json_object
+{
+	...
+	int size;
+};
+```
+
+所以直接取出即可
+
+```c
+int json_object_size(const json_object_t *obj)
+{
+	return obj->size;
+}
+```
+
+2. 获取array的size
+
+```
+函数签名: int json_array_size(const json_array_t *arr);
+描述: 
+获取Json array的size
+```
+
+```c
+int json_array_size(const json_array_t *arr)
+{
+	return arr->size;
+}
+```
+
+## object通过key查找value
+
+```
+函数签名: const json_value_t *json_object_find(const char *name, const json_object_t *obj);
+描述: 
+通过name(key)来查找Json value，
+如果没找到返回NULL
+查找的时间复杂度为O(log(n))，因为是红黑树的查找
+注意返回的是json value是const的
+```
+
+这里我们又要先复习一下内核红黑树查找模版
+
+```c
+struct Task 
+{
+    int val;
+    struct rb_node rb_node;
+};
+
+struct Task *task_search(struct rb_root *root, int val)
+{
+ 	struct rb_node *node = root->rb_node;
+
+    while (node) {
+        struct Task *data = rb_entry(node, struct Task, rb_node);
+    
+        if (val < data->val)
+            node = node->rb_left;
+        else if (val > data->val)
+            node = node->rb_right;
+        else 
+            return data;
+    }
+    
+    return NULL;
+}
+
+....
+struct rb_root task_tree = RB_ROOT;
+struct Task *data = task_search(&task_tree, 10);
+```
+
+```c
+const json_value_t *json_object_find(const char *name,
+									 const json_object_t *obj)
+{
+	struct rb_node *p = obj->root.rb_node;
+	json_member_t *memb;
+	int n;
+
+	while (p)
+	{
+		memb = rb_entry(p, json_member_t, rb);
+		n = strcmp(name, memb->name);
+		if (n < 0)
+			p = p->rb_left;
+		else if (n > 0)
+			p = p->rb_right;
+		else
+			return &memb->value;
+	}
+
+	return NULL;
+}
+```
+
+就是进去比较大小，小的往左子树走，大的向右子树走，直到找到相同返回，否则就返回NULL
