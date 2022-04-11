@@ -18,6 +18,10 @@ https://github.com/sogou/workflow
 
 - [Http Server 解析3](./src_analysis/22_http_server_02.md)
 
+### Http client
+
+- [http task 基础结构](./src_analysis/18_http_01.md)
+
 ### 非网络Task
 
 网络task相对较为复杂，可以先从这几个task入手，了解task的继承结构。
@@ -27,6 +31,12 @@ https://github.com/sogou/workflow
 - [Go Task](./src_analysis/12_go_task.md)
 
 - [Timer Task](./src_analysis/15_timer_task.md)
+
+## wf基础数据结构
+
+- [基础数据结构 list](./src_analysis/24_list.md)
+
+- [基础数据结构 rbtree](./src_analysis/25_rb_tree.md)
 
 ### wf核心
 
@@ -1501,8 +1511,6 @@ https://github.com/sogou/workflow/issues/643
 创建一个WFMySQLConnection的时候需要传入一个id，必须全局唯一，之后的调用内部都会由这个id去唯一找到对应的那个连接。
 
 初始化需要传入url，之后在这个connection上创建的任务就不需要再设置url了。
-
-
 
 https://github.com/sogou/workflow/issues/444
 
