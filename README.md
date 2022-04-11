@@ -34,6 +34,12 @@ https://github.com/sogou/workflow
 
 - [Parallel机制](./src_analysis/11_parallel.md)
 
+## json parser
+
+- [Json parser : part1 parse](./src_analysis/23_json_01_parse.md)
+
+- [Json parser : part2 access](./src_analysis/23_json_01_parse.md)
+
 ### FAQ 中的解析解析
 
 - [faq 62 : 原始的task在series没有结束的时候是不会被销毁吗?](./src_analysis/faq_62.md)
