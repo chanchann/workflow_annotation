@@ -1,3 +1,4 @@
+#! https://zhuanlan.zhihu.com/p/496260608
 # Workflow 源码解析 Json parser ：part2 access
 
 项目地址 : https://github.com/Barenboim/json-parser
@@ -127,7 +128,7 @@ struct __json_object
 
 他既挂在了list上，又挂在了rb tree上，我们遍历list每一个member
 
-从list和rb tree上删除，然后去销毁member(嵌套的结构)并释放内存
+销毁member(嵌套的结构)并释放内存
 
 我们知道，member是一个kv结构，key是一个柔性数组，所以key的大小是连同`__json_member`一起被分配的，所以也是随着`free(memb)`而销毁
 
@@ -152,8 +153,6 @@ static void __destroy_json_members(json_object_t *obj)
 	list_for_each_safe(pos, tmp, &obj->head)
 	{
 		memb = list_entry(pos, json_member_t, list);
-		list_del(pos);
-		rb_erase(&memb->rb, &obj->root);
 		// 递归进入嵌套销毁
 		__destroy_json_value(&memb->value);
 		free(memb);
